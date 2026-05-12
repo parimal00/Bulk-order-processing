@@ -1,0 +1,113 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        WWWUSER: ${WWWUSER:-1000}
+        WWWGROUP: ${WWWGROUP:-1000}
+    image: bulk-order-processing-app
+    pull_policy: never
+    container_name: bulk-order-processing-app
+    ports:
+      - "7000:8000"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-bulk_order_processing}
+      DB_USERNAME: ${DB_USERNAME:-app}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # queue:
+  #   image: bulk-order-processing-app
+  #   container_name: bulk-order-processing-queue
+  #   command: php artisan queue:work --tries=1 --timeout=0
+  #   environment:
+  #     APP_ENV: local
+  #     APP_DEBUG: "true"
+  #     APP_URL: http://localhost:8000
+  #     DB_CONNECTION: mysql
+  #     DB_HOST: mysql
+  #     DB_PORT: 3306
+  #     DB_DATABASE: ${DB_DATABASE:-bulk_order_processing}
+  #     DB_USERNAME: ${DB_USERNAME:-app}
+  #     DB_PASSWORD: ${DB_PASSWORD:-secret}
+  #     QUEUE_CONNECTION: database
+  #     CACHE_STORE: database
+  #     SESSION_DRIVER: database
+  #     RUN_MIGRATIONS: "false"
+  #   volumes:
+  #     - ./:/var/www/html
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+
+  # vite:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     args:
+  #       WWWUSER: ${WWWUSER:-1000}
+  #       WWWGROUP: ${WWWGROUP:-1000}
+  #   image: bulk-order-processing-app
+  #   pull_policy: never
+  #   container_name: bulk-order-processing-vite
+  #   command: npm run dev -- --host 0.0.0.0 --port 5173
+  #   ports:
+  #     - "5174:5173"
+  #   environment:
+  #     APP_ENV: local
+  #     RUN_MIGRATIONS: "false"
+  #   volumes:
+  #     - ./:/var/www/html
+  #   depends_on:
+  #     app:
+  #       condition: service_started
+
+  mysql:
+    image: mysql:8.4
+    container_name: bulk-order-processing-mysql
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_DATABASE:-bulk_order_processing}
+      MYSQL_USER: ${DB_USERNAME:-app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: bulk-order-processing-phpmyadmin
+    ports:
+      - "7001:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      PMA_ARBITRARY: 0
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
