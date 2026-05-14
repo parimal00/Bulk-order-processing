@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,11 +7,13 @@ import { cn } from '@/lib/utils';
 
 type Trend = 'up' | 'down' | 'neutral';
 
+type PageHeaderAction = string | { label: string; href: string };
+
 type PageHeaderProps = {
     eyebrow: string;
     title: string;
     description: string;
-    actions?: string[];
+    actions?: PageHeaderAction[];
 };
 
 export function PageHeader({ eyebrow, title, description, actions = [] }: PageHeaderProps) {
@@ -28,9 +31,15 @@ export function PageHeader({ eyebrow, title, description, actions = [] }: PageHe
             {actions.length > 0 && (
                 <div className="mt-5 flex flex-wrap gap-2">
                     {actions.map((action) => (
-                        <Button key={action} size="sm" className="bg-white text-[#0d5f74] hover:bg-cyan-50">
-                            {action}
-                        </Button>
+                        typeof action === 'string' ? (
+                            <Button key={action} size="sm" className="bg-white text-[#0d5f74] hover:bg-cyan-50">
+                                {action}
+                            </Button>
+                        ) : (
+                            <Button key={`${action.label}-${action.href}`} size="sm" className="bg-white text-[#0d5f74] hover:bg-cyan-50" asChild>
+                                <Link href={action.href}>{action.label}</Link>
+                            </Button>
+                        )
                     ))}
                 </div>
             )}

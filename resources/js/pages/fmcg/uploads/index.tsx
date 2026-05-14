@@ -11,7 +11,7 @@ export default function UploadsIndexPage() {
                 eyebrow="Ingestion"
                 title="Bulk Upload Batches"
                 description="Track all incoming files and API batches before processing. Filter by status, customer, or owner and jump into failed rows quickly."
-                actions={['New Upload', 'Export Upload Report']}
+                actions={[{ label: 'New Upload', href: '/fmcg/uploads/new' }, 'Export Upload Report']}
             />
 
             <SectionCard

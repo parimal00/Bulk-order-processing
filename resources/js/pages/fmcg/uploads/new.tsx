@@ -10,7 +10,39 @@ const mappingRows = [
     { source: 'unit_price', target: 'Proposed Unit Price', confidence: '88%' },
 ];
 
+import { useRef, useState } from 'react';
+import { router } from '@inertiajs/react';
+
+
 export default function NewUploadPage() {
+
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [file, setFile] = useState<File | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+
+    const onPickFile = () => fileInputRef.current?.click();
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFile(e.target.files?.[0] ?? null);
+    };
+
+    const onUpload = () => {
+        if (!file) return;
+
+        const form = new FormData();
+        form.append('file', file);
+
+        setSubmitting(true);
+        router.post('/fmcg/bulk-uploads', form, {
+            forceFormData: true,
+            onFinish: () => setSubmitting(false),
+            onSuccess: () => {
+                router.visit('/fmcg/uploads/validation');
+            }
+        });
+    };
+
     return (
         <FmcgPageShell title="New Upload">
             <PageHeader
@@ -25,8 +57,21 @@ export default function NewUploadPage() {
                     <p className="text-base font-medium text-cyan-900">Drag and drop FMCG order file here</p>
                     <p className="mt-2 text-sm text-cyan-700">Supports CSV and XLSX up to 10 MB</p>
                     <div className="mt-4 flex items-center justify-center gap-2">
-                        <Button>Choose File</Button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv,text/csv"
+                            className="hidden"
+                            onChange={onFileChange}
+                        />
+                        <Button onClick={onPickFile}>Choose File</Button>
                         <Button variant="outline">Download Template</Button>
+
+                        {file ? <p className="mt-3 text-sm text-slate-700">{file.name}</p> : null}
+
+                        <Button onClick={onUpload} disabled={!file || submitting}>
+                            {submitting ? 'Uploading...' : 'Upload CSV'}
+                        </Button>
                     </div>
                 </div>
             </SectionCard>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Fmcg\BulkUploadController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -14,6 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::inertia('uploads', 'fmcg/uploads/index')->name('uploads.index');
         Route::inertia('uploads/new', 'fmcg/uploads/new')->name('uploads.new');
         Route::inertia('uploads/validation', 'fmcg/uploads/validation')->name('uploads.validation');
+        Route::post('bulk-uploads', [BulkUploadController::class, 'store'])->name('bulk-uploads.store');
 
         Route::inertia('processing', 'fmcg/processing')->name('processing');
         Route::inertia('approvals', 'fmcg/approvals')->name('approvals');
