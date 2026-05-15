@@ -3,23 +3,37 @@ import { PageHeader, SectionCard } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-const mappingRows = [
-    { source: 'sku_code', target: 'SKU', confidence: '98%' },
-    { source: 'qty_ordered', target: 'Requested Quantity', confidence: '96%' },
-    { source: 'need_by', target: 'Requested Delivery Date', confidence: '93%' },
-    { source: 'unit_price', target: 'Proposed Unit Price', confidence: '88%' },
-];
 
-import { useRef, useState } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
 
 
-export default function NewUploadPage() {
-
+export default function NewUploadPage({ flash, upload, headers, sampleData }: { flash: any, upload?: any, headers?: string[], sampleData?: any[] }) {
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [file, setFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
+
+    const systemFields = [
+        { value: 'sku', label: 'SKU' },
+        { value: 'quantity', label: 'Quantity' },
+        { value: 'requested_date', label: 'Requested Delivery Date' },
+        { value: 'note', label: 'Notes' },
+    ];
+
+    // Initialize mappings: For each system field, find the best matching CSV header
+    useEffect(() => {
+        if (headers) {
+            const initial: Record<string, string> = {};
+            systemFields.forEach(field => {
+                const match = headers.find(h => h.toLowerCase().includes(field.value.toLowerCase()));
+                if (match) initial[field.value] = match;
+            });
+            setColumnMapping(initial);
+        }
+    }, [headers]);
 
     const onPickFile = () => fileInputRef.current?.click();
 
@@ -38,10 +52,12 @@ export default function NewUploadPage() {
             forceFormData: true,
             onFinish: () => setSubmitting(false),
             onSuccess: () => {
-                router.visit('/fmcg/uploads/validation');
+                // Stay on page to allow mapping
             }
         });
     };
+
+
 
     return (
         <FmcgPageShell title="New Upload">
@@ -73,6 +89,11 @@ export default function NewUploadPage() {
                             {submitting ? 'Uploading...' : 'Upload CSV'}
                         </Button>
                     </div>
+                    {upload && (
+                        <p className="mt-4 text-sm font-semibold text-emerald-600">
+                            ✓ File "{upload.original_filename}" uploaded successfully. Please map columns below.
+                        </p>
+                    )}
                 </div>
             </SectionCard>
 
@@ -86,20 +107,97 @@ export default function NewUploadPage() {
                     </div>
                 </SectionCard>
 
-                <SectionCard title="Step 3 - Column Mapping" subtitle="Map source columns to required fields">
-                    <div className="space-y-3 text-sm">
-                        {mappingRows.map((row) => (
-                            <div key={row.source} className="rounded-xl border border-slate-200 bg-white p-3">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="font-mono text-xs text-slate-600">{row.source}</p>
-                                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700">{row.confidence}</span>
+                <SectionCard title="Step 3 - Column Mapping" subtitle="Assign CSV columns to required fields">
+                    <div className="space-y-4 text-sm">
+                        {headers ? (
+                            systemFields.map((field) => (
+                                <div key={field.value} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                    <div className="flex items-center justify-between gap-2 mb-3">
+                                        <p className="font-semibold text-slate-900">{field.label}</p>
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight ${columnMapping[field.value] ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>
+                                            {columnMapping[field.value] ? 'Linked' : 'Pending'}
+                                        </span>
+                                    </div>
+                                    <div className="mt-2">
+                                        <select
+                                            value={columnMapping[field.value] || ''}
+                                            onChange={(e) => setColumnMapping(prev => ({ ...prev, [field.value]: e.target.value }))}
+                                            className="w-full rounded-lg border-slate-200 bg-slate-50 text-sm focus:border-cyan-500 focus:ring-cyan-500 py-2"
+                                        >
+                                            <option value="">-- Choose CSV Column --</option>
+                                            {headers.map(h => (
+                                                <option key={h} value={h}>
+                                                    {h}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
-                                <p className="mt-1 font-medium text-slate-800">{row.target}</p>
+                            ))
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500">
+                                <p className="italic">Upload a file first to see column mapping</p>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </SectionCard>
             </div>
+
+            {sampleData && sampleData.length > 0 && (
+                <SectionCard title="Step 4 - Sample Preview" subtitle="First 3 rows as they will be imported">
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-slate-600">
+                                <tr>
+                                    {/* Mapped system fields */}
+                                    {systemFields.map((field) => (
+                                        <th key={field.value} className="border-r border-slate-200 px-4 py-3 font-medium bg-cyan-50/50">
+                                            <div className="flex flex-col">
+                                                <span className="text-cyan-800 text-xs uppercase tracking-wider">{field.label}</span>
+                                            </div>
+                                        </th>
+                                    ))}
+                                    {/* Unmapped CSV columns */}
+                                    {headers.filter(h => !Object.values(columnMapping).includes(h)).map((h: string) => (
+                                        <th key={h} className="px-4 py-3 font-medium text-slate-400">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] uppercase tracking-wider">Unmapped</span>
+                                                <span className="text-xs truncate max-w-[120px]">{h}</span>
+                                            </div>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {sampleData.map((row: any, i: number) => (
+                                    <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                        {/* Mapped values */}
+                                        {systemFields.map((field) => (
+                                            <td key={field.value} className="border-r border-slate-100 px-4 py-2 font-medium text-slate-900 bg-cyan-50/20">
+                                                {columnMapping[field.value] ? row[columnMapping[field.value]] : <span className="text-slate-300">--</span>}
+                                            </td>
+                                        ))}
+                                        {/* Unmapped values */}
+                                        {headers.filter(h => !Object.values(columnMapping).includes(h)).map((h: string) => (
+                                            <td key={h} className="px-4 py-2 text-slate-400 italic">
+                                                {row[h]}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="mt-6 flex items-center justify-between">
+                        <p className="text-sm text-slate-500">
+                            Showing first 3 rows. All mapped fields will be validated in the next step.
+                        </p>
+                        <Button size="lg" className="bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-100">
+                            Confirm Mapping & Start Validation
+                        </Button>
+                    </div>
+                </SectionCard>
+            )}
         </FmcgPageShell>
     );
 }

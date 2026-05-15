@@ -13,7 +13,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('fmcg')->name('fmcg.')->group(function () {
         Route::inertia('uploads', 'fmcg/uploads/index')->name('uploads.index');
-        Route::inertia('uploads/new', 'fmcg/uploads/new')->name('uploads.new');
+        Route::get('uploads/new', function () {
+            return \Inertia\Inertia::render('fmcg/uploads/new', [
+                'upload' => session('upload'),
+                'headers' => session('headers'),
+                'sampleData' => session('sampleData'),
+            ]);
+        })->name('uploads.new');
         Route::inertia('uploads/validation', 'fmcg/uploads/validation')->name('uploads.validation');
         Route::post('bulk-uploads', [BulkUploadController::class, 'store'])->name('bulk-uploads.store');
 
