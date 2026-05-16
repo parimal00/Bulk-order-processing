@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Fmcg;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Fmcg\ProcessMappingRequest;
 use App\Http\Requests\Fmcg\StoreBulkUploadRequest;
+use App\Models\BulkUpload;
 use App\Services\Fmcg\BulkUploadService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use League\Csv\Reader;
 use League\Csv\Statement;
@@ -19,25 +22,14 @@ class BulkUploadController extends Controller
 
         $upload = $bulkUploadService->createUpload($file, $request->user()?->id);
 
+        return redirect()->route('fmcg.uploads.new', ['upload' => $upload->id])
+            ->with('success', "Upload {$upload->id} received.");
+    }
 
-        $csv = Reader::createFromPath(Storage::path($upload->storage_path), 'r');
+    public function processMapping(ProcessMappingRequest $request, BulkUpload $upload, BulkUploadService $bulkUploadService): RedirectResponse
+    {
+        $bulkUploadService->saveMapping($upload, $request->validated('mapping'));
 
-        $csv->setHeaderOffset(0); 
-        $headers = $csv->getHeader();
-        
-        $stmt = Statement::create()->limit(3);
-        $records = $stmt->process($csv);
-        
-        $sampleData = [];
-        foreach ($records as $record) {
-            $sampleData[] = $record;
-        }
-
-        return back()->with([
-            'success' => "Upload {$upload->id} received.",
-            'upload' => $upload,
-            'headers' => $headers,
-            'sampleData' => $sampleData,
-        ]);
+        return redirect()->route('fmcg.uploads.validation')->with('success', 'Mapping saved. Validation started.');
     }
 }

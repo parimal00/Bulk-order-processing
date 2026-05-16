@@ -2,14 +2,11 @@ import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-
-
 import { useEffect, useRef, useState } from 'react';
-import { router } from '@inertiajs/react';
-
+import { router, usePage } from '@inertiajs/react';
 
 export default function NewUploadPage({ flash, upload, headers, sampleData }: { flash: any, upload?: any, headers?: string[], sampleData?: any[] }) {
+    const { errors } = usePage().props;
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [file, setFile] = useState<File | null>(null);
@@ -57,7 +54,18 @@ export default function NewUploadPage({ flash, upload, headers, sampleData }: { 
         });
     };
 
+    const [processing, setProcessing] = useState(false);
 
+    const onConfirmMapping = () => {
+        if (!upload) return;
+
+        setProcessing(true);
+        router.post(`/fmcg/bulk-uploads/${upload.id}/process-mapping`, {
+            mapping: columnMapping
+        }, {
+            onFinish: () => setProcessing(false),
+        });
+    };
 
     return (
         <FmcgPageShell title="New Upload">
@@ -132,6 +140,9 @@ export default function NewUploadPage({ flash, upload, headers, sampleData }: { 
                                             ))}
                                         </select>
                                     </div>
+                                    {errors[`mapping.${field.value}`] && (
+                                        <p className="mt-1 text-xs text-rose-600 font-medium">{errors[`mapping.${field.value}`]}</p>
+                                    )}
                                 </div>
                             ))
                         ) : (
@@ -158,7 +169,7 @@ export default function NewUploadPage({ flash, upload, headers, sampleData }: { 
                                         </th>
                                     ))}
                                     {/* Unmapped CSV columns */}
-                                    {headers.filter(h => !Object.values(columnMapping).includes(h)).map((h: string) => (
+                                    {headers?.filter(h => !Object.values(columnMapping).includes(h)).map((h: string) => (
                                         <th key={h} className="px-4 py-3 font-medium text-slate-400">
                                             <div className="flex flex-col">
                                                 <span className="text-[10px] uppercase tracking-wider">Unmapped</span>
@@ -178,7 +189,7 @@ export default function NewUploadPage({ flash, upload, headers, sampleData }: { 
                                             </td>
                                         ))}
                                         {/* Unmapped values */}
-                                        {headers.filter(h => !Object.values(columnMapping).includes(h)).map((h: string) => (
+                                        {headers?.filter(h => !Object.values(columnMapping).includes(h)).map((h: string) => (
                                             <td key={h} className="px-4 py-2 text-slate-400 italic">
                                                 {row[h]}
                                             </td>
@@ -192,8 +203,13 @@ export default function NewUploadPage({ flash, upload, headers, sampleData }: { 
                         <p className="text-sm text-slate-500">
                             Showing first 3 rows. All mapped fields will be validated in the next step.
                         </p>
-                        <Button size="lg" className="bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-100">
-                            Confirm Mapping & Start Validation
+                        <Button
+                            size="lg"
+                            className="bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-100"
+                            onClick={onConfirmMapping}
+                            disabled={processing}
+                        >
+                            {processing ? 'Processing...' : 'Confirm Mapping & Start Validation'}
                         </Button>
                     </div>
                 </SectionCard>

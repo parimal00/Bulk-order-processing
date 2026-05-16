@@ -15,6 +15,10 @@ class BulkUploadService
 
         $storagePath = $file->store('bulk-uploads');
 
+        if (!$storagePath) {
+            throw new \RuntimeException('Failed to store uploaded file.');
+        }
+
         return BulkUpload::query()->create([
             'customer_id' => $customer->id,
             'uploaded_by' => $uploadedBy,
@@ -29,6 +33,17 @@ class BulkUploadService
         ]);
     }
 
+    public function saveMapping(BulkUpload $upload, array $mapping): void
+    {
+        $upload->update([
+            'column_mapping' => $mapping,
+            'status' => BulkUpload::STATUS_VALIDATING,
+            'started_at' => now(),
+        ]);
+
+        // TODO: Dispatch validation job
+    }
+
     protected function resolveDefaultCustomer(): Customer
     {
         $defaultCustomerId = (int) env('BULK_UPLOAD_DEFAULT_CUSTOMER_ID', 1);
@@ -37,5 +52,33 @@ class BulkUploadService
             ->whereKey($defaultCustomerId)
             ->where('is_active', true)
             ->firstOrFail();
+    }
+
+    public function getCsvMetadata(BulkUpload $upload): array
+    {
+        if (empty($upload->storage_path) || !Storage::exists($upload->storage_path)) {
+            return [
+                'headers' => [],
+                'sampleData' => [],
+            ];
+        }
+
+        $csv = \League\Csv\Reader::createFromPath(Storage::path($upload->storage_path), 'r');
+        $csv->setHeaderOffset(0);
+
+        $headers = $csv->getHeader();
+
+        $stmt = \League\Csv\Statement::create()->limit(3);
+        $records = $stmt->process($csv);
+
+        $sampleData = [];
+        foreach ($records as $record) {
+            $sampleData[] = $record;
+        }
+
+        return [
+            'headers' => $headers,
+            'sampleData' => $sampleData,
+        ];
     }
 }

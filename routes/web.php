@@ -13,15 +13,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('fmcg')->name('fmcg.')->group(function () {
         Route::inertia('uploads', 'fmcg/uploads/index')->name('uploads.index');
-        Route::get('uploads/new', function () {
+        Route::get('uploads/new/{upload?}', function (\App\Models\BulkUpload $upload = null, \App\Services\Fmcg\BulkUploadService $service) {
+            $metadata = $upload ? $service->getCsvMetadata($upload) : [];
+
             return \Inertia\Inertia::render('fmcg/uploads/new', [
-                'upload' => session('upload'),
-                'headers' => session('headers'),
-                'sampleData' => session('sampleData'),
+                'upload' => $upload,
+                'headers' => $metadata['headers'] ?? null,
+                'sampleData' => $metadata['sampleData'] ?? null,
             ]);
         })->name('uploads.new');
         Route::inertia('uploads/validation', 'fmcg/uploads/validation')->name('uploads.validation');
         Route::post('bulk-uploads', [BulkUploadController::class, 'store'])->name('bulk-uploads.store');
+        Route::post('bulk-uploads/{upload}/process-mapping', [BulkUploadController::class, 'processMapping'])->name('bulk-uploads.process-mapping');
 
         Route::inertia('processing', 'fmcg/processing')->name('processing');
         Route::inertia('approvals', 'fmcg/approvals')->name('approvals');
