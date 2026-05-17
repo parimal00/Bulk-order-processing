@@ -8,16 +8,15 @@ use App\Http\Requests\Fmcg\StoreBulkUploadRequest;
 use App\Models\BulkUpload;
 use App\Services\Fmcg\BulkUploadService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use League\Csv\Reader;
-use League\Csv\Statement;
+use Illuminate\Http\UploadedFile;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class BulkUploadController extends Controller
 {
     public function store(StoreBulkUploadRequest $request, BulkUploadService $bulkUploadService): RedirectResponse
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request->file('file');
 
         $upload = $bulkUploadService->createUpload($file, $request->user()?->id);
@@ -30,6 +29,16 @@ class BulkUploadController extends Controller
     {
         $bulkUploadService->saveMapping($upload, $request->validated('mapping'));
 
-        return redirect()->route('fmcg.uploads.validation')->with('success', 'Mapping saved. Validation started.');
+        return redirect()->route('fmcg.uploads.validation', ['upload' => $upload->id])->with('success', 'Mapping saved. Validation started.');
+    }
+
+    public function validation(BulkUpload $upload): Response
+    {
+        $errors = $upload->validationErrors()->paginate(50);
+
+        return Inertia::render('fmcg/uploads/validation', [
+            'upload' => $upload,
+            'errors' => $errors,
+        ]);
     }
 }

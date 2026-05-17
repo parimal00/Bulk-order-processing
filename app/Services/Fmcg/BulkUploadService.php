@@ -2,10 +2,13 @@
 
 namespace App\Services\Fmcg;
 
+use App\Jobs\Fmcg\ValidateBulkUploadJob;
 use App\Models\BulkUpload;
 use App\Models\Customer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use League\Csv\Reader;
+use League\Csv\Statement;
 
 class BulkUploadService
 {
@@ -15,7 +18,7 @@ class BulkUploadService
 
         $storagePath = $file->store('bulk-uploads');
 
-        if (!$storagePath) {
+        if (! $storagePath) {
             throw new \RuntimeException('Failed to store uploaded file.');
         }
 
@@ -41,7 +44,8 @@ class BulkUploadService
             'started_at' => now(),
         ]);
 
-        // TODO: Dispatch validation job
+        // Dispatch validation job
+        ValidateBulkUploadJob::dispatch($upload);
     }
 
     protected function resolveDefaultCustomer(): Customer
@@ -56,19 +60,19 @@ class BulkUploadService
 
     public function getCsvMetadata(BulkUpload $upload): array
     {
-        if (empty($upload->storage_path) || !Storage::exists($upload->storage_path)) {
+        if (empty($upload->storage_path) || ! Storage::exists($upload->storage_path)) {
             return [
                 'headers' => [],
                 'sampleData' => [],
             ];
         }
 
-        $csv = \League\Csv\Reader::createFromPath(Storage::path($upload->storage_path), 'r');
+        $csv = Reader::createFromPath(Storage::path($upload->storage_path), 'r');
         $csv->setHeaderOffset(0);
 
         $headers = $csv->getHeader();
 
-        $stmt = \League\Csv\Statement::create()->limit(3);
+        $stmt = Statement::create()->limit(3);
         $records = $stmt->process($csv);
 
         $sampleData = [];

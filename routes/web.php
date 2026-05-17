@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\Fmcg\BulkUploadController;
+use App\Models\BulkUpload;
+use App\Services\Fmcg\BulkUploadService;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
 Route::inertia('/', 'welcome', [
@@ -13,16 +16,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('fmcg')->name('fmcg.')->group(function () {
         Route::inertia('uploads', 'fmcg/uploads/index')->name('uploads.index');
-        Route::get('uploads/new/{upload?}', function (\App\Models\BulkUpload $upload = null, \App\Services\Fmcg\BulkUploadService $service) {
+        Route::get('uploads/new/{upload?}', function (?BulkUpload $upload, BulkUploadService $service) {
             $metadata = $upload ? $service->getCsvMetadata($upload) : [];
 
-            return \Inertia\Inertia::render('fmcg/uploads/new', [
+            return Inertia::render('fmcg/uploads/new', [
                 'upload' => $upload,
                 'headers' => $metadata['headers'] ?? null,
                 'sampleData' => $metadata['sampleData'] ?? null,
             ]);
         })->name('uploads.new');
-        Route::inertia('uploads/validation', 'fmcg/uploads/validation')->name('uploads.validation');
+        Route::get('uploads/{upload}/validation', [BulkUploadController::class, 'validation'])->name('uploads.validation');
         Route::post('bulk-uploads', [BulkUploadController::class, 'store'])->name('bulk-uploads.store');
         Route::post('bulk-uploads/{upload}/process-mapping', [BulkUploadController::class, 'processMapping'])->name('bulk-uploads.process-mapping');
 
