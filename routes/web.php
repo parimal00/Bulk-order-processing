@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Fmcg\BulkUploadController;
+use App\Http\Controllers\Fmcg\OrderController;
 use App\Models\BulkUpload;
 use App\Services\Fmcg\BulkUploadService;
 use Illuminate\Support\Facades\Route;
@@ -33,7 +34,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::inertia('processing', 'fmcg/processing')->name('processing');
         Route::inertia('approvals', 'fmcg/approvals')->name('approvals');
 
-        Route::inertia('orders', 'fmcg/orders/index')->name('orders.index');
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::inertia('orders/so-55012', 'fmcg/orders/show')->name('orders.show');
 
         Route::inertia('reconciliation', 'fmcg/reconciliation')->name('reconciliation');

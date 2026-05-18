@@ -2,9 +2,18 @@ import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard, StatusPill } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { orders } from '@/lib/fmcg-data';
+type PaginatedOrders = {
+    data: Array<{
+        id: number;
+        order_number: string;
+        customer: { name: string } | null;
+        status: string;
+        total: string;
+        placed_at: string;
+    }>;
+};
 
-export default function OrdersIndexPage() {
+export default function OrdersIndexPage({ orders }: { orders: PaginatedOrders }) {
     return (
         <FmcgPageShell title="Orders">
             <PageHeader
@@ -35,14 +44,14 @@ export default function OrdersIndexPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {orders.map((order) => (
-                                <tr key={order.orderNo}>
-                                    <td className="py-3 font-medium text-slate-800">{order.orderNo}</td>
-                                    <td className="py-3 text-slate-700">{order.customer}</td>
+                            {orders.data.map((order) => (
+                                <tr key={order.id}>
+                                    <td className="py-3 font-medium text-slate-800">{order.order_number}</td>
+                                    <td className="py-3 text-slate-700">{order.customer?.name ?? 'Unknown'}</td>
                                     <td className="py-3"><StatusPill value={order.status} /></td>
-                                    <td className="py-3 text-slate-700">{order.fulfillment}%</td>
-                                    <td className="py-3 text-slate-700">{order.total}</td>
-                                    <td className="py-3 text-slate-700">{order.updatedAt}</td>
+                                    <td className="py-3 text-slate-700">0%</td>
+                                    <td className="py-3 text-slate-700">${order.total}</td>
+                                    <td className="py-3 text-slate-700">{new Date(order.placed_at).toLocaleDateString()}</td>
                                 </tr>
                             ))}
                         </tbody>
