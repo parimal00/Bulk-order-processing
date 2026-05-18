@@ -42,6 +42,12 @@ export default function UploadValidationPage({ upload, errors }: ValidationProps
         };
     }, [upload.status]);
 
+    const handleProcess = () => {
+        router.post(`/fmcg/bulk-uploads/${upload.id}/process`, {}, {
+            preserveScroll: true,
+        });
+    };
+
     return (
         <FmcgPageShell title="Validation Results">
             <PageHeader
@@ -51,8 +57,12 @@ export default function UploadValidationPage({ upload, errors }: ValidationProps
                 actions={[
                     'Export Errors',
                     'Re-Validate',
-                    <Button key="process" disabled={upload.valid_rows === 0 || upload.status === 'validating'}>
-                        Process Valid Rows
+                    <Button
+                        key="process"
+                        disabled={upload.valid_rows === 0 || upload.status === 'validating' || upload.status === 'processing'}
+                        onClick={handleProcess}
+                    >
+                        {upload.status === 'processing' ? 'Processing...' : 'Process Valid Rows'}
                     </Button>
                 ]}
             />

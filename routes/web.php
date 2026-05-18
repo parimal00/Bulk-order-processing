@@ -28,6 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('uploads/{upload}/validation', [BulkUploadController::class, 'validation'])->name('uploads.validation');
         Route::post('bulk-uploads', [BulkUploadController::class, 'store'])->name('bulk-uploads.store');
         Route::post('bulk-uploads/{upload}/process-mapping', [BulkUploadController::class, 'processMapping'])->name('bulk-uploads.process-mapping');
+        Route::post('bulk-uploads/{upload}/process', [BulkUploadController::class, 'process'])->name('bulk-uploads.process');
 
         Route::inertia('processing', 'fmcg/processing')->name('processing');
         Route::inertia('approvals', 'fmcg/approvals')->name('approvals');

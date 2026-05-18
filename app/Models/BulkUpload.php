@@ -19,6 +19,10 @@ class BulkUpload extends Model
 
     public const STATUS_INVALID = 'invalid';
 
+    public const STATUS_PROCESSING = 'processing';
+
+    public const STATUS_PROCESSED = 'processed';
+
     protected $fillable = [
         'customer_id',
         'uploaded_by',

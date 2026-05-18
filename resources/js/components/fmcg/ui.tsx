@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Link } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 type Trend = 'up' | 'down' | 'neutral';
 
-type PageHeaderAction = string | { label: string; href: string };
+type PageHeaderAction = string | { label: string; href: string } | React.ReactNode;
 
 type PageHeaderProps = {
     eyebrow: string;
@@ -30,17 +31,23 @@ export function PageHeader({ eyebrow, title, description, actions = [] }: PageHe
             <p className="mt-2 max-w-3xl text-sm text-cyan-50/90">{description}</p>
             {actions.length > 0 && (
                 <div className="mt-5 flex flex-wrap gap-2">
-                    {actions.map((action) => (
-                        typeof action === 'string' ? (
-                            <Button key={action} size="sm" className="bg-white text-[#0d5f74] hover:bg-cyan-50">
-                                {action}
-                            </Button>
-                        ) : (
-                            <Button key={`${action.label}-${action.href}`} size="sm" className="bg-white text-[#0d5f74] hover:bg-cyan-50" asChild>
-                                <Link href={action.href}>{action.label}</Link>
-                            </Button>
-                        )
-                    ))}
+                    {actions.map((action, index) => {
+                        if (typeof action === 'string') {
+                            return (
+                                <Button key={action} size="sm" className="bg-white text-[#0d5f74] hover:bg-cyan-50">
+                                    {action}
+                                </Button>
+                            );
+                        }
+                        if (action && typeof action === 'object' && 'label' in action && 'href' in action) {
+                            return (
+                                <Button key={`${action.label}-${action.href}`} size="sm" className="bg-white text-[#0d5f74] hover:bg-cyan-50" asChild>
+                                    <Link href={action.href}>{action.label}</Link>
+                                </Button>
+                            );
+                        }
+                        return <React.Fragment key={index}>{action}</React.Fragment>;
+                    })}
                 </div>
             )}
         </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Fmcg;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Fmcg\ProcessMappingRequest;
 use App\Http\Requests\Fmcg\StoreBulkUploadRequest;
+use App\Jobs\Fmcg\ProcessBulkUploadJob;
 use App\Models\BulkUpload;
 use App\Services\Fmcg\BulkUploadService;
 use Illuminate\Http\RedirectResponse;
@@ -40,5 +41,18 @@ class BulkUploadController extends Controller
             'upload' => $upload,
             'errors' => $errors,
         ]);
+    }
+
+    public function process(BulkUpload $upload): RedirectResponse
+    {
+        if (! in_array($upload->status, [BulkUpload::STATUS_VALID, BulkUpload::STATUS_INVALID])) {
+            return back()->with('error', 'Cannot process an upload in this status.');
+        }
+
+        $upload->update(['status' => BulkUpload::STATUS_PROCESSING]);
+
+        ProcessBulkUploadJob::dispatch($upload);
+
+        return redirect()->route('fmcg.approvals')->with('success', 'Processing started. Orders will appear here shortly.');
     }
 }

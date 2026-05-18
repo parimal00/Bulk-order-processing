@@ -62,7 +62,7 @@ class SampleProductSeeder extends Seeder
                 'pack_size' => 6,
                 'base_price' => 4.50,
                 'is_active' => true,
-            ]
+            ],
         ];
 
         foreach ($products as $product) {
