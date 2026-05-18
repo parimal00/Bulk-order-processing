@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Fmcg\BulkUploadController;
+use App\Http\Controllers\Fmcg\OrderApprovalController;
 use App\Http\Controllers\Fmcg\OrderController;
 use App\Models\BulkUpload;
 use App\Services\Fmcg\BulkUploadService;
@@ -32,7 +33,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('bulk-uploads/{upload}/process', [BulkUploadController::class, 'process'])->name('bulk-uploads.process');
 
         Route::inertia('processing', 'fmcg/processing')->name('processing');
-        Route::inertia('approvals', 'fmcg/approvals')->name('approvals');
+        Route::get('approvals', [OrderApprovalController::class, 'index'])->name('approvals');
+        Route::post('approvals/{order}/approve', [OrderApprovalController::class, 'approve'])->name('approvals.approve');
+        Route::post('approvals/{order}/reject', [OrderApprovalController::class, 'reject'])->name('approvals.reject');
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::inertia('orders/so-55012', 'fmcg/orders/show')->name('orders.show');
