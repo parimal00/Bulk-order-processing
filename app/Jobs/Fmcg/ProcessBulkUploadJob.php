@@ -6,6 +6,7 @@ use App\Models\BulkUpload;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\Product;
+use App\Services\Fmcg\PricingEngine;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,7 +24,7 @@ class ProcessBulkUploadJob implements ShouldQueue
 
     public function __construct(public BulkUpload $upload) {}
 
-    public function handle(): void
+    public function handle(PricingEngine $pricingEngine): void
     {
         // Only process if status is processing to avoid double runs
         if ($this->upload->status !== BulkUpload::STATUS_PROCESSING) {
@@ -86,6 +87,9 @@ class ProcessBulkUploadJob implements ShouldQueue
 
             $orderLines = [];
             $subtotal = 0;
+            $customer = $this->upload->customer;
+            $allPolicyFlags = [];
+            $margins = [];
 
             // Re-read CSV to build order lines
             $csv = Reader::createFromPath(Storage::path($this->upload->storage_path), 'r');
@@ -105,8 +109,15 @@ class ProcessBulkUploadJob implements ShouldQueue
                 $product = $activeProducts->get($sku);
 
                 if ($product && $qty > 0) {
-                    $unitPrice = $product->base_price; // Will be replaced by PricingEngine later
+                    // Call Pricing Engine
+                    $pricing = $pricingEngine->calculate($customer, $product, $qty);
+                    $unitPrice = $pricing['unit_price'];
                     $lineTotal = $unitPrice * $qty;
+
+                    if (!empty($pricing['flags'])) {
+                        $allPolicyFlags = array_merge($allPolicyFlags, $pricing['flags']);
+                    }
+                    $margins[] = (int) str_replace('%', '', $pricing['margin']);
 
                     $orderLines[] = [
                         'order_id' => $order->id,
@@ -133,10 +144,16 @@ class ProcessBulkUploadJob implements ShouldQueue
                 }
             }
 
-            // Update order totals
+            // Calculate average margin
+            $defaultMargin = config('fmcg.pricing.default_margin', 22);
+            $avgMargin = count($margins) > 0 ? round(array_sum($margins) / count($margins)) . '%' : $defaultMargin . '%';
+
+            // Update order totals and policy flags
             $order->update([
                 'subtotal' => $subtotal,
                 'total' => $subtotal, // Tax/Shipping could be added here
+                'policy_flags' => count($allPolicyFlags) > 0 ? array_values(array_unique($allPolicyFlags)) : null,
+                'projected_margin' => $avgMargin,
             ]);
 
             // Mark upload as processed

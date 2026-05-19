@@ -22,6 +22,8 @@ class Order extends Model
         'total',
         'source_row_number',
         'placed_at',
+        'policy_flags',
+        'projected_margin',
     ];
 
     protected function casts(): array
@@ -31,6 +33,7 @@ class Order extends Model
             'total' => 'decimal:2',
             'source_row_number' => 'integer',
             'placed_at' => 'datetime',
+            'policy_flags' => 'array',
         ];
     }
 

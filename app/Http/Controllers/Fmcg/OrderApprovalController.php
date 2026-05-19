@@ -16,24 +16,23 @@ class OrderApprovalController extends Controller
             ->latest('placed_at')
             ->get()
             ->map(function ($order) {
-                // Simulate risk and reasons for now based on total amount
-                $risk = 'low';
-                $reasons = [];
-                $margin = '22%';
+                // Determine risk and reasons based on real policy flags and order total
+                $flags = $order->policy_flags ?? [];
 
-                if ($order->total > 10000) {
-                    $risk = 'high';
-                    $reasons[] = 'Large Order Value';
-                    $margin = '18%'; // high volume discount simulated
-                } elseif ($order->total > 5000) {
-                    $risk = 'medium';
-                    $reasons[] = 'Moderate Order Value';
-                    $margin = '20%';
+                // Dynamically flag large orders if not already flagged by engine
+                if ($order->total > 10000 && !in_array('Large Order Value', $flags)) {
+                    $flags[] = 'Large Order Value';
                 }
 
-                if ($order->lines()->count() > 50) {
-                    $risk = $risk === 'low' ? 'medium' : 'high';
-                    $reasons[] = 'High Line Item Count';
+                $risk = 'low';
+                if (count($flags) > 0) {
+                    $risk = 'medium';
+                    foreach ($flags as $flag) {
+                        if (str_contains(strtolower($flag), 'moq') || str_contains(strtolower($flag), 'large')) {
+                            $risk = 'high';
+                            break;
+                        }
+                    }
                 }
 
                 return [
@@ -43,8 +42,8 @@ class OrderApprovalController extends Controller
                     'amount' => '$' . number_format($order->total, 2),
                     'submittedAt' => $order->placed_at ? $order->placed_at->diffForHumans() : 'Unknown',
                     'risk' => $risk,
-                    'margin' => $margin,
-                    'reasons' => count($reasons) > 0 ? $reasons : ['Standard Order'],
+                    'margin' => $order->projected_margin ?? '22%',
+                    'reasons' => count($flags) > 0 ? $flags : ['Standard Order'],
                 ];
             });
 
