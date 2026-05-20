@@ -26,7 +26,7 @@ class OrderController extends Controller
         $order->load(['customer', 'lines.product']);
 
         return Inertia::render('fmcg/orders/show', [
-            'order' => new OrderDetailResource($order)
+            'order' => (new OrderDetailResource($order))->resolve()
         ]);
     }
 }

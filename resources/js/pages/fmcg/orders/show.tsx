@@ -179,7 +179,7 @@ export default function OrderDetailPage({ order }: { order: OrderDetail }) {
 }
 
 OrderDetailPage.layout = (page: any) => {
-    const order = page.props.order;
+    const order = page?.props?.order;
     return {
         breadcrumbs: [
             { title: 'Dashboard', href: '/dashboard' },

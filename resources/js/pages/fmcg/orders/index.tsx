@@ -2,6 +2,7 @@ import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard, StatusPill } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Link } from '@inertiajs/react';
 type PaginatedOrders = {
     data: Array<{
         id: number;
@@ -41,17 +42,30 @@ export default function OrdersIndexPage({ orders }: { orders: PaginatedOrders })
                                 <th className="pb-3">Fulfillment</th>
                                 <th className="pb-3">Total</th>
                                 <th className="pb-3">Updated</th>
+                                <th className="pb-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {orders.data.map((order) => (
-                                <tr key={order.id}>
-                                    <td className="py-3 font-medium text-slate-800">{order.order_number}</td>
+                                <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="py-3 font-medium text-slate-800">
+                                        <Link href={`/fmcg/orders/${order.id}`} className="text-cyan-600 hover:text-cyan-700 hover:underline">
+                                            {order.order_number}
+                                        </Link>
+                                    </td>
                                     <td className="py-3 text-slate-700">{order.customer?.name ?? 'Unknown'}</td>
                                     <td className="py-3"><StatusPill value={order.status} /></td>
                                     <td className="py-3 text-slate-700">0%</td>
                                     <td className="py-3 text-slate-700">${order.total}</td>
                                     <td className="py-3 text-slate-700">{new Date(order.placed_at).toLocaleDateString()}</td>
+                                    <td className="py-3 text-right">
+                                        <Link
+                                            href={`/fmcg/orders/${order.id}`}
+                                            className="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                                        >
+                                            View Order
+                                        </Link>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

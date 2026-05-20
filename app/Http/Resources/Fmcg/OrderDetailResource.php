@@ -30,7 +30,7 @@ class OrderDetailResource extends JsonResource
             'projected_margin' => $this->projected_margin ?? '22%',
             'customer_name' => $this->customer?->name ?? 'Unknown',
             'fulfillment' => $fulfillment,
-            'lines' => OrderLineResource::collection($this->lines),
+            'lines' => OrderLineResource::collection($this->lines)->resolve(),
         ];
     }
 }

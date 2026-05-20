@@ -71,7 +71,7 @@ export default function ApprovalsPage({ orders }: { orders: ApprovalOrder[] }) {
                     className="xl:col-span-3"
                     title="Order Review"
                     subtitle="Decision context and policy flags"
-                    right={<Button size="sm">Open Full Order</Button>}
+                    right={selected ? <Button size="sm" onClick={() => router.visit(`/fmcg/orders/${selected.id}`)}>Open Full Order</Button> : null}
                 >
                     <div className="space-y-4 text-sm">
                         {selected ? (

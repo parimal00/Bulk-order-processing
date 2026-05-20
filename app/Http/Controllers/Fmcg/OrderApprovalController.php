@@ -18,7 +18,7 @@ class OrderApprovalController extends Controller
             ->get();
 
         return Inertia::render('fmcg/approvals', [
-            'orders' => OrderApprovalResource::collection($orders)
+            'orders' => OrderApprovalResource::collection($orders)->resolve()
         ]);
     }
 
