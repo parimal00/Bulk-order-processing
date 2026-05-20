@@ -21,6 +21,7 @@ class SampleProductSeeder extends Seeder
                 'moq' => 1,
                 'pack_size' => 1,
                 'base_price' => 15.50,
+                'stock' => 500, // Plentiful stock
                 'is_active' => true,
             ],
             [
@@ -31,6 +32,7 @@ class SampleProductSeeder extends Seeder
                 'moq' => 1,
                 'pack_size' => 1,
                 'base_price' => 70.00,
+                'stock' => 200, // Plentiful stock
                 'is_active' => true,
             ],
             [
@@ -41,6 +43,7 @@ class SampleProductSeeder extends Seeder
                 'moq' => 10,
                 'pack_size' => 10,
                 'base_price' => 1.20,
+                'stock' => 20, // Limited stock (easy to trigger partial fill)
                 'is_active' => true,
             ],
             [
@@ -51,6 +54,7 @@ class SampleProductSeeder extends Seeder
                 'moq' => 5,
                 'pack_size' => 5,
                 'base_price' => 8.00,
+                'stock' => 0, // Out of stock (testing pure backorder)
                 'is_active' => true,
             ],
             [
@@ -61,12 +65,13 @@ class SampleProductSeeder extends Seeder
                 'moq' => 6,
                 'pack_size' => 6,
                 'base_price' => 4.50,
+                'stock' => 100, // Plentiful stock
                 'is_active' => true,
             ],
         ];
 
         foreach ($products as $product) {
-            Product::firstOrCreate(
+            Product::updateOrCreate(
                 ['sku' => $product['sku']],
                 $product
             );

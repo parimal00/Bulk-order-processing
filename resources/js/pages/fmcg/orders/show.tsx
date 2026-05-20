@@ -1,64 +1,173 @@
 import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard, StatusPill } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
-import { orderLines } from '@/lib/fmcg-data';
+import { router } from '@inertiajs/react';
 
-export default function OrderDetailPage() {
+type OrderDetailLine = {
+    sku: string;
+    product_name: string;
+    requested_qty: number;
+    allocated_qty: number;
+    backorder_qty: number;
+    unit_price: string;
+    line_total: string;
+    allocation_status: string;
+};
+
+type OrderDetail = {
+    id: number;
+    order_number: string;
+    status: string;
+    currency: string;
+    subtotal: number;
+    total: number;
+    placed_at: string;
+    policy_flags: string[];
+    projected_margin: string;
+    customer_name: string;
+    fulfillment: number;
+    lines: OrderDetailLine[];
+};
+
+export default function OrderDetailPage({ order }: { order: OrderDetail }) {
+    const handleApprove = () => {
+        router.post(`/fmcg/approvals/${order.id}/approve`, {}, { preserveScroll: true });
+    };
+
+    const handleReject = () => {
+        router.post(`/fmcg/approvals/${order.id}/reject`, {}, { preserveScroll: true });
+    };
+
+    const getStatusExplanation = () => {
+        if (order.status === 'allocated') {
+            return '100% allocated. Order is fully reserved in the warehouse and ready for release.';
+        }
+        if (order.status === 'partially_fulfilled') {
+            return `Fulfillment ratio is ${order.fulfillment}%. ${order.lines.filter(l => l.backorder_qty > 0).length} line items have split backorders.`;
+        }
+        if (order.status === 'backordered') {
+            return '0% allocated. All items have been placed on backorder due to safety stock shortfalls.';
+        }
+        if (order.status === 'pending_review') {
+            return `Review required: Triggered risk rules. (Fulfillment: ${order.fulfillment}%).`;
+        }
+        return `Order is currently in ${order.status} state.`;
+    };
+
     return (
-        <FmcgPageShell title="Order Detail">
+        <FmcgPageShell title={`Order - ${order.order_number}`}>
             <PageHeader
                 eyebrow="Order Detail"
-                title="SO-55012 - EverFresh Supermart"
-                description="Detailed line-level view including pricing, allocation, backorders, and approval history for this FMCG wholesale order."
-                actions={['Approve Release', 'Notify Warehouse', 'Retry ERP Sync']}
+                title={`${order.order_number} - ${order.customer_name}`}
+                description="Detailed line-level view including pricing, warehouse allocation, backorders, and approval history."
+                actions={
+                    order.status === 'pending_review'
+                        ? [
+                              <Button key="app" onClick={handleApprove} className="bg-emerald-600 hover:bg-emerald-700">Approve Release</Button>,
+                              <Button key="rej" onClick={handleReject} variant="destructive">Reject Order</Button>
+                          ]
+                        : ['Notify Warehouse', 'Export Manifest']
+                }
             />
 
             <div className="grid gap-4 lg:grid-cols-3">
-                <SectionCard title="Status" subtitle="Current execution state">
+                <SectionCard title="Warehouse Allocation" subtitle="Current inventory state">
                     <div className="space-y-3">
-                        <StatusPill value="backordered" />
-                        <p className="text-sm text-slate-600">Backorder ratio is 28%. 2 line items will ship in next wave.</p>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-500">Fulfillment Status</span>
+                            <StatusPill value={order.status} />
+                        </div>
+                        <p className="text-sm text-slate-600">{getStatusExplanation()}</p>
+                        
+                        {/* Progress Bar */}
+                        <div className="mt-3">
+                            <div className="flex justify-between text-xs font-semibold text-slate-500 mb-1">
+                                <span>Fulfillment Progress</span>
+                                <span>{order.fulfillment}%</span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                                <div 
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                        order.fulfillment === 100 
+                                            ? 'bg-emerald-500' 
+                                            : order.fulfillment > 0 
+                                            ? 'bg-amber-500' 
+                                            : 'bg-rose-500'
+                                    }`}
+                                    style={{ width: `${order.fulfillment}%` }}
+                                ></div>
+                            </div>
+                        </div>
                     </div>
                 </SectionCard>
-                <SectionCard title="Commercial" subtitle="Financial snapshot">
-                    <div className="space-y-1 text-sm text-slate-700">
-                        <p>Subtotal: <span className="font-semibold">$23,400</span></p>
-                        <p>Discount: <span className="font-semibold">-$1,280</span></p>
-                        <p>Tax: <span className="font-semibold">$2,740</span></p>
-                        <p className="pt-2 text-base">Grand Total: <span className="font-semibold text-slate-800">$24,860</span></p>
+
+                <SectionCard title="Commercials" subtitle="Financial breakdown">
+                    <div className="space-y-1.5 text-sm text-slate-700">
+                        <div className="flex justify-between">
+                            <span className="text-slate-500">Subtotal:</span>
+                            <span className="font-semibold text-slate-800">
+                                ${order.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-slate-500">Projected Margin:</span>
+                            <span className="font-semibold text-cyan-600">{order.projected_margin}</span>
+                        </div>
+                        <div className="border-t border-slate-100 pt-2 flex justify-between text-base">
+                            <span className="font-medium text-slate-600">Grand Total:</span>
+                            <span className="font-bold text-slate-900">
+                                ${order.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
                     </div>
                 </SectionCard>
-                <SectionCard title="Actions" subtitle="Operational controls">
-                    <div className="flex flex-wrap gap-2">
-                        <Button size="sm">Allocate from Backup WH</Button>
-                        <Button size="sm" variant="outline">Split Shipment</Button>
-                        <Button size="sm" variant="outline">Escalate</Button>
+
+                <SectionCard title="Control & Policy Flags" subtitle="Risk audit findings">
+                    <div className="space-y-3">
+                        {order.policy_flags && order.policy_flags.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                                {order.policy_flags.map((flag) => (
+                                    <span key={flag} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 shadow-sm">
+                                        {flag}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-slate-500 italic">No policy flags or warnings triggered. Standard B2B clearance.</p>
+                        )}
+                        <p className="text-xs text-slate-400">Placed on {new Date(order.placed_at).toLocaleString()}</p>
                     </div>
                 </SectionCard>
             </div>
 
-            <SectionCard title="Line Items" subtitle="Requested vs allocated quantities">
+            <SectionCard title="Line Items" subtitle="Requested quantities vs allocated warehouse stock">
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[920px] text-left text-sm">
                         <thead className="border-b text-xs uppercase tracking-wide text-slate-500">
                             <tr>
                                 <th className="pb-3">SKU</th>
-                                <th className="pb-3">Product</th>
-                                <th className="pb-3">Requested</th>
-                                <th className="pb-3">Allocated</th>
-                                <th className="pb-3">Backorder</th>
-                                <th className="pb-3">Unit Price</th>
+                                <th className="pb-3">Product Description</th>
+                                <th className="pb-3 text-right">Requested Qty</th>
+                                <th className="pb-3 text-right">Allocated Qty</th>
+                                <th className="pb-3 text-right">Backordered Qty</th>
+                                <th className="pb-3 text-right">Unit Price</th>
+                                <th className="pb-3 text-right">Line Total</th>
+                                <th className="pb-3 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {orderLines.map((line) => (
-                                <tr key={line.sku}>
-                                    <td className="py-3 font-mono text-xs text-slate-600">{line.sku}</td>
-                                    <td className="py-3 font-medium text-slate-800">{line.product}</td>
-                                    <td className="py-3 text-slate-700">{line.requestedQty}</td>
-                                    <td className="py-3 text-slate-700">{line.allocatedQty}</td>
-                                    <td className="py-3 text-slate-700">{line.backorderQty}</td>
-                                    <td className="py-3 text-slate-700">{line.unitPrice}</td>
+                            {order.lines.map((line) => (
+                                <tr key={line.sku} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="py-3.5 font-mono text-xs font-semibold text-slate-600">{line.sku}</td>
+                                    <td className="py-3.5 font-medium text-slate-800">{line.product_name}</td>
+                                    <td className="py-3.5 text-right font-medium text-slate-700">{line.requested_qty}</td>
+                                    <td className={`py-3.5 text-right font-medium ${line.allocated_qty === line.requested_qty ? 'text-emerald-600' : 'text-amber-600'}`}>{line.allocated_qty}</td>
+                                    <td className={`py-3.5 text-right font-medium ${line.backorder_qty > 0 ? 'text-rose-500 font-semibold' : 'text-slate-400'}`}>{line.backorder_qty}</td>
+                                    <td className="py-3.5 text-right text-slate-600">{line.unit_price}</td>
+                                    <td className="py-3.5 text-right font-semibold text-slate-800">{line.line_total}</td>
+                                    <td className="py-3.5 text-center">
+                                        <StatusPill value={line.allocation_status} />
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -69,10 +178,13 @@ export default function OrderDetailPage() {
     );
 }
 
-OrderDetailPage.layout = {
-    breadcrumbs: [
-        { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Orders', href: '/fmcg/orders' },
-        { title: 'SO-55012', href: '/fmcg/orders/so-55012' },
-    ],
+OrderDetailPage.layout = (page: any) => {
+    const order = page.props.order;
+    return {
+        breadcrumbs: [
+            { title: 'Dashboard', href: '/dashboard' },
+            { title: 'Orders', href: '/fmcg/orders' },
+            { title: order?.order_number ?? 'Order', href: `/fmcg/orders/${order?.id}` },
+        ],
+    };
 };

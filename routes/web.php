@@ -38,7 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('approvals/{order}/reject', [OrderApprovalController::class, 'reject'])->name('approvals.reject');
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
-        Route::inertia('orders/so-55012', 'fmcg/orders/show')->name('orders.show');
+        Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 
         Route::inertia('reconciliation', 'fmcg/reconciliation')->name('reconciliation');
         Route::inertia('audit', 'fmcg/audit')->name('audit');

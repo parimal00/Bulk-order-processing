@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\Product;
 use App\Services\Fmcg\PricingEngine;
+use App\Services\Fmcg\InventoryEngine;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -24,7 +25,7 @@ class ProcessBulkUploadJob implements ShouldQueue
 
     public function __construct(public BulkUpload $upload) {}
 
-    public function handle(PricingEngine $pricingEngine): void
+    public function handle(PricingEngine $pricingEngine, InventoryEngine $inventoryEngine): void
     {
         // Only process if status is processing to avoid double runs
         if ($this->upload->status !== BulkUpload::STATUS_PROCESSING) {
@@ -56,7 +57,7 @@ class ProcessBulkUploadJob implements ShouldQueue
                 throw new \Exception('Missing required column mapping for sku or quantity.');
             }
 
-            // 3. Create the Order shell
+            // 3. Create the Order shell (we will update its status and totals later)
             $order = Order::create([
                 'bulk_upload_id' => $this->upload->id,
                 'customer_id' => $this->upload->customer_id,
@@ -91,6 +92,10 @@ class ProcessBulkUploadJob implements ShouldQueue
             $allPolicyFlags = [];
             $margins = [];
 
+            $totalRequestedQty = 0;
+            $totalAllocatedQty = 0;
+            $totalBackorderQty = 0;
+
             // Re-read CSV to build order lines
             $csv = Reader::createFromPath(Storage::path($this->upload->storage_path), 'r');
             $csv->setHeaderOffset(0);
@@ -119,15 +124,27 @@ class ProcessBulkUploadJob implements ShouldQueue
                     }
                     $margins[] = (int) str_replace('%', '', $pricing['margin']);
 
+                    // Call Inventory Engine for thread-safe allocation
+                    $allocation = $inventoryEngine->allocate($product, $qty);
+                    $allocatedQty = $allocation['allocated_qty'];
+                    $backorderQty = $allocation['backorder_qty'];
+                    $allocationStatus = $allocation['status'];
+
+                    $totalRequestedQty += $qty;
+                    $totalAllocatedQty += $allocatedQty;
+                    $totalBackorderQty += $backorderQty;
+
                     $orderLines[] = [
                         'order_id' => $order->id,
                         'product_id' => $product->id,
                         'sku' => $product->sku,
                         'product_name' => $product->name,
                         'quantity' => $qty,
+                        'allocated_quantity' => $allocatedQty,
+                        'backorder_quantity' => $backorderQty,
                         'unit_price' => $unitPrice,
                         'line_total' => $lineTotal,
-                        'allocation_status' => 'pending', // Will be replaced by InventoryEngine later
+                        'allocation_status' => $allocationStatus,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
@@ -148,12 +165,28 @@ class ProcessBulkUploadJob implements ShouldQueue
             $defaultMargin = config('fmcg.pricing.default_margin', 22);
             $avgMargin = count($margins) > 0 ? round(array_sum($margins) / count($margins)) . '%' : $defaultMargin . '%';
 
-            // Update order totals and policy flags
+            // Check if backorder quantity exceeds 20% threshold
+            if ($totalRequestedQty > 0) {
+                $backorderRatio = $totalBackorderQty / $totalRequestedQty;
+                if ($backorderRatio > 0.20) {
+                    $allPolicyFlags[] = 'Backorder > 20%';
+                }
+            }
+
+            // Determine order status (auto-approved vs pending manual review)
+            $orderStatus = 'pending_review';
+            if (count($allPolicyFlags) === 0) {
+                // Auto-approved since no policy flags were triggered!
+                $orderStatus = $order->determineFulfillmentStatus($totalAllocatedQty, $totalBackorderQty);
+            }
+
+            // Update order totals, policy flags, and final status
             $order->update([
                 'subtotal' => $subtotal,
                 'total' => $subtotal, // Tax/Shipping could be added here
                 'policy_flags' => count($allPolicyFlags) > 0 ? array_values(array_unique($allPolicyFlags)) : null,
                 'projected_margin' => $avgMargin,
+                'status' => $orderStatus,
             ]);
 
             // Mark upload as processed
@@ -166,7 +199,7 @@ class ProcessBulkUploadJob implements ShouldQueue
 
         } catch (\Exception $e) {
             DB::rollBack();
-            // We can add a processing_failed status later if needed, but for now just mark invalid
+            // Mark invalid/failed if an error occurred during transaction
             $this->upload->update([
                 'status' => BulkUpload::STATUS_INVALID,
                 'finished_at' => now(),
