@@ -138,4 +138,131 @@ class OrderProcessingTest extends TestCase
         $this->assertEquals(90, $line->backorder_quantity);
         $this->assertEquals('partially_fulfilled', $line->allocation_status);
     }
+
+    public function test_job_is_idempotent_on_retry(): void
+    {
+        $customer = Customer::create([
+            'name' => 'Metro Retail Group',
+            'email' => 'metro@example.com',
+            'type' => 'gold',
+            'phone' => '1234567890',
+            'address' => '123 Retail Lane',
+        ]);
+
+        $product = Product::create([
+            'sku' => 'RICE-BASMATI-5KG',
+            'name' => 'Basmati Rice 5KG',
+            'unit_of_measure' => 'Bag',
+            'moq' => 1,
+            'pack_size' => 1,
+            'base_price' => 15.50,
+            'stock' => 100,
+            'is_active' => true,
+        ]);
+
+        $csvContent = "sku,quantity\nRICE-BASMATI-5KG,10\n";
+        Storage::disk('local')->put('uploads/test_idempotency.csv', $csvContent);
+
+        $upload = BulkUpload::create([
+            'customer_id' => $customer->id,
+            'uploaded_by' => null,
+            'file_name' => 'test_idempotency.csv',
+            'storage_path' => 'uploads/test_idempotency.csv',
+            'column_mapping' => ['sku' => 'sku', 'quantity' => 'quantity'],
+            'status' => BulkUpload::STATUS_PROCESSING,
+        ]);
+
+        $pricingEngine = new PricingEngine();
+        $inventoryEngine = new InventoryEngine();
+
+        // 1. First run of the job
+        $job = new ProcessBulkUploadJob($upload);
+        $job->handle($pricingEngine, $inventoryEngine);
+
+        // Verify order created and stock decremented
+        $this->assertEquals(1, Order::where('bulk_upload_id', $upload->id)->count());
+        $this->assertEquals(90, $product->fresh()->stock);
+        $this->assertEquals(BulkUpload::STATUS_PROCESSED, $upload->fresh()->status);
+
+        // 2. Simulate Retry: set status back to processing and run the job again
+        $upload->update(['status' => BulkUpload::STATUS_PROCESSING]);
+        $job2 = new ProcessBulkUploadJob($upload);
+        $job2->handle($pricingEngine, $inventoryEngine);
+
+        // Verify NO duplicate orders and NO extra stock deductions
+        $this->assertEquals(1, Order::where('bulk_upload_id', $upload->id)->count());
+        $this->assertEquals(90, $product->fresh()->stock);
+        $this->assertEquals(BulkUpload::STATUS_PROCESSED, $upload->fresh()->status);
+    }
+
+    public function test_concurrent_job_execution_prevents_duplicate_orders(): void
+    {
+        $customer = Customer::create([
+            'name' => 'Metro Retail Group',
+            'email' => 'metro@example.com',
+            'type' => 'gold',
+            'phone' => '1234567890',
+            'address' => '123 Retail Lane',
+        ]);
+
+        $upload = BulkUpload::create([
+            'customer_id' => $customer->id,
+            'uploaded_by' => null,
+            'file_name' => 'test_concurrent.csv',
+            'storage_path' => 'uploads/test_concurrent.csv',
+            'column_mapping' => ['sku' => 'sku', 'quantity' => 'quantity'],
+            'status' => BulkUpload::STATUS_PROCESSING,
+        ]);
+
+        // Manually acquire the lock to simulate another worker holding it
+        $lock = \Illuminate\Support\Facades\Cache::lock("process_upload_{$upload->id}", 60);
+        $lock->get();
+
+        // Mock the queue job to assert that release is called
+        $mockJob = $this->createMock(\Illuminate\Contracts\Queue\Job::class);
+        $mockJob->expects($this->once())
+            ->method('release')
+            ->with(5);
+
+        $job = new ProcessBulkUploadJob($upload);
+        $job->setJob($mockJob);
+
+        // Run handle - it should hit the lock, release itself, and return early
+        $job->handle(new PricingEngine(), new InventoryEngine());
+
+        // Release the lock for clean up
+        $lock->release();
+    }
+
+    public function test_job_handles_permanent_failure_after_exhausting_retries(): void
+    {
+        $customer = Customer::create([
+            'name' => 'Metro Retail Group',
+            'email' => 'metro@example.com',
+            'type' => 'gold',
+            'phone' => '1234567890',
+            'address' => '123 Retail Lane',
+        ]);
+
+        $upload = BulkUpload::create([
+            'customer_id' => $customer->id,
+            'uploaded_by' => null,
+            'file_name' => 'test_failed.csv',
+            'storage_path' => 'uploads/test_failed.csv',
+            'column_mapping' => ['sku' => 'sku', 'quantity' => 'quantity'],
+            'status' => BulkUpload::STATUS_PROCESSING,
+        ]);
+
+        $job = new ProcessBulkUploadJob($upload);
+        $job->failed(new \Exception('Database crash on processing row'));
+
+        // Verify upload is marked as invalid/failed and ValidationError logged
+        $this->assertEquals(BulkUpload::STATUS_INVALID, $upload->fresh()->status);
+        $this->assertNotNull($upload->fresh()->finished_at);
+
+        $error = $upload->validationErrors()->first();
+        $this->assertNotNull($error);
+        $this->assertEquals('SYSTEM_ERROR', $error->error_code);
+        $this->assertStringContainsString('Processing failed: Database crash on processing row', $error->error_message);
+    }
 }
