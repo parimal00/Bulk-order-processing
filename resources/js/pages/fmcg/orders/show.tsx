@@ -1,7 +1,7 @@
 import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard, StatusPill } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 
 type OrderDetailLine = {
     sku: string;
@@ -29,12 +29,26 @@ type OrderDetail = {
     lines: OrderDetailLine[];
 };
 
-export default function OrderDetailPage({ order }: { order: OrderDetail }) {
+type ActivityLog = {
+    id: number;
+    timestamp: string;
+    entity: string;
+    action: string;
+    actor: string;
+    details: string;
+};
+
+export default function OrderDetailPage({ order, activities }: { order: OrderDetail; activities: ActivityLog[] }) {
+    const { auth } = usePage<any>().props;
+    const isOps = auth?.user?.role === 'ops';
+
     const handleApprove = () => {
+        if (isOps) return;
         router.post(`/fmcg/approvals/${order.id}/approve`, {}, { preserveScroll: true });
     };
 
     const handleReject = () => {
+        if (isOps) return;
         router.post(`/fmcg/approvals/${order.id}/reject`, {}, { preserveScroll: true });
     };
 
@@ -63,8 +77,8 @@ export default function OrderDetailPage({ order }: { order: OrderDetail }) {
                 actions={
                     order.status === 'pending_review'
                         ? [
-                              <Button key="app" onClick={handleApprove} className="bg-emerald-600 hover:bg-emerald-700">Approve Release</Button>,
-                              <Button key="rej" onClick={handleReject} variant="destructive">Reject Order</Button>
+                              <Button key="app" onClick={handleApprove} disabled={isOps} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">Approve Release</Button>,
+                              <Button key="rej" onClick={handleReject} disabled={isOps} variant="destructive" className="disabled:opacity-50 disabled:cursor-not-allowed">Reject Order</Button>
                           ]
                         : ['Notify Warehouse', 'Export Manifest']
                 }
@@ -140,40 +154,74 @@ export default function OrderDetailPage({ order }: { order: OrderDetail }) {
                 </SectionCard>
             </div>
 
-            <SectionCard title="Line Items" subtitle="Requested quantities vs allocated warehouse stock">
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[920px] text-left text-sm">
-                        <thead className="border-b text-xs uppercase tracking-wide text-slate-500">
-                            <tr>
-                                <th className="pb-3">SKU</th>
-                                <th className="pb-3">Product Description</th>
-                                <th className="pb-3 text-right">Requested Qty</th>
-                                <th className="pb-3 text-right">Allocated Qty</th>
-                                <th className="pb-3 text-right">Backordered Qty</th>
-                                <th className="pb-3 text-right">Unit Price</th>
-                                <th className="pb-3 text-right">Line Total</th>
-                                <th className="pb-3 text-center">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {order.lines.map((line) => (
-                                <tr key={line.sku} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="py-3.5 font-mono text-xs font-semibold text-slate-600">{line.sku}</td>
-                                    <td className="py-3.5 font-medium text-slate-800">{line.product_name}</td>
-                                    <td className="py-3.5 text-right font-medium text-slate-700">{line.requested_qty}</td>
-                                    <td className={`py-3.5 text-right font-medium ${line.allocated_qty === line.requested_qty ? 'text-emerald-600' : 'text-amber-600'}`}>{line.allocated_qty}</td>
-                                    <td className={`py-3.5 text-right font-medium ${line.backorder_qty > 0 ? 'text-rose-500 font-semibold' : 'text-slate-400'}`}>{line.backorder_qty}</td>
-                                    <td className="py-3.5 text-right text-slate-600">{line.unit_price}</td>
-                                    <td className="py-3.5 text-right font-semibold text-slate-800">{line.line_total}</td>
-                                    <td className="py-3.5 text-center">
-                                        <StatusPill value={line.allocation_status} />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            <div className="grid gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                    <SectionCard title="Line Items" subtitle="Requested quantities vs allocated warehouse stock">
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[620px] text-left text-sm">
+                                <thead className="border-b text-xs uppercase tracking-wide text-slate-500">
+                                    <tr>
+                                        <th className="pb-3">SKU</th>
+                                        <th className="pb-3">Product Description</th>
+                                        <th className="pb-3 text-right">Requested</th>
+                                        <th className="pb-3 text-right">Allocated</th>
+                                        <th className="pb-3 text-right">Backordered</th>
+                                        <th className="pb-3 text-right">Unit Price</th>
+                                        <th className="pb-3 text-right">Total</th>
+                                        <th className="pb-3 text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {order.lines.map((line) => (
+                                        <tr key={line.sku} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="py-3.5 font-mono text-xs font-semibold text-slate-600">{line.sku}</td>
+                                            <td className="py-3.5 font-medium text-slate-800">{line.product_name}</td>
+                                            <td className="py-3.5 text-right font-medium text-slate-700">{line.requested_qty}</td>
+                                            <td className={`py-3.5 text-right font-medium ${line.allocated_qty === line.requested_qty ? 'text-emerald-600' : 'text-amber-600'}`}>{line.allocated_qty}</td>
+                                            <td className={`py-3.5 text-right font-medium ${line.backorder_qty > 0 ? 'text-rose-500 font-semibold' : 'text-slate-400'}`}>{line.backorder_qty}</td>
+                                            <td className="py-3.5 text-right text-slate-600">{line.unit_price}</td>
+                                            <td className="py-3.5 text-right font-semibold text-slate-800">{line.line_total}</td>
+                                            <td className="py-3.5 text-center">
+                                                <StatusPill value={line.allocation_status} />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </SectionCard>
                 </div>
-            </SectionCard>
+
+                <div className="lg:col-span-1">
+                    <SectionCard title="Activity Timeline" subtitle="Actor-level status transitions">
+                        <div className="space-y-4">
+                            {activities.length === 0 ? (
+                                <p className="text-sm text-slate-500 italic">No activity logs recorded yet.</p>
+                            ) : (
+                                <div className="relative border-l border-slate-200 pl-4 ml-2 space-y-5">
+                                    {activities.map((activity) => (
+                                        <div key={activity.id} className="relative">
+                                            <span className={`absolute -left-[21px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full ring-4 ring-white ${
+                                                activity.action.toLowerCase().includes('approve') 
+                                                    ? 'bg-emerald-500' 
+                                                    : activity.action.toLowerCase().includes('reject') 
+                                                    ? 'bg-rose-500' 
+                                                    : 'bg-cyan-500'
+                                            }`}></span>
+                                            <div className="flex items-center justify-between text-xs text-slate-400">
+                                                <span className="font-semibold text-slate-700">{activity.actor}</span>
+                                                <span>{activity.timestamp}</span>
+                                            </div>
+                                            <p className="mt-1 text-sm font-semibold text-slate-800">{activity.action}</p>
+                                            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{activity.details}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </SectionCard>
+                </div>
+            </div>
         </FmcgPageShell>
     );
 }

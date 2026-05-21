@@ -25,8 +25,15 @@ class OrderController extends Controller
     {
         $order->load(['customer', 'lines.product']);
 
+        $activities = \App\Models\AuditLog::with('user')
+            ->where('entity_type', Order::class)
+            ->where('entity_id', $order->id)
+            ->latest('id')
+            ->get();
+
         return Inertia::render('fmcg/orders/show', [
-            'order' => (new OrderDetailResource($order))->resolve()
+            'order' => (new OrderDetailResource($order))->resolve(),
+            'activities' => \App\Http\Resources\Fmcg\AuditLogResource::collection($activities)->resolve(),
         ]);
     }
 }

@@ -41,11 +41,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 
         Route::inertia('reconciliation', 'fmcg/reconciliation')->name('reconciliation');
-        Route::inertia('audit', 'fmcg/audit')->name('audit');
+        Route::get('audit', [App\Http\Controllers\Fmcg\AuditLogController::class, 'index'])->name('audit');
 
         Route::inertia('settings/pricing-rules', 'fmcg/settings/pricing-rules')->name('settings.pricing-rules');
         Route::inertia('settings/inventory-rules', 'fmcg/settings/inventory-rules')->name('settings.inventory-rules');
-        Route::inertia('settings/users-roles', 'fmcg/settings/users-roles')->name('settings.users-roles');
+        Route::get('settings/users-roles', [App\Http\Controllers\Fmcg\TeamSettingsController::class, 'index'])->name('settings.users-roles');
+        Route::put('settings/users-roles/{user}', [App\Http\Controllers\Fmcg\TeamSettingsController::class, 'update'])->name('settings.users-roles.update');
     });
 });
 

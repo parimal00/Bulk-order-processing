@@ -24,6 +24,10 @@ class Order extends Model
         'placed_at',
         'policy_flags',
         'projected_margin',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
     ];
 
     protected function casts(): array
@@ -34,6 +38,8 @@ class Order extends Model
             'source_row_number' => 'integer',
             'placed_at' => 'datetime',
             'policy_flags' => 'array',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -50,6 +56,16 @@ class Order extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 
     public function lines(): HasMany

@@ -12,7 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'role'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -41,5 +41,28 @@ class User extends Authenticatable
     public function createdOrders(): HasMany
     {
         return $this->hasMany(Order::class, 'created_by');
+    }
+
+    public function isOps(): bool
+    {
+        return $this->role === 'ops';
+    }
+
+    public function isApprover(): bool
+    {
+        return $this->role === 'approver';
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function hasRole(array|string $roles): bool
+    {
+        if (is_array($roles)) {
+            return in_array($this->role, $roles);
+        }
+        return $this->role === $roles;
     }
 }

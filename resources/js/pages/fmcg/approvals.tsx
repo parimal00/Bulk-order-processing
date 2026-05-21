@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard, StatusPill } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
@@ -16,22 +16,30 @@ type ApprovalOrder = {
 };
 
 export default function ApprovalsPage({ orders }: { orders: ApprovalOrder[] }) {
+    const { auth } = usePage<any>().props;
+    const isOps = auth?.user?.role === 'ops';
     const [selectedId, setSelectedId] = useState<number | null>(orders[0]?.id ?? null);
 
     const selected = orders.find(o => o.id === selectedId) ?? orders[0];
 
     const handleApprove = () => {
-        if (!selected) return;
+        if (!selected || isOps) return;
         router.post(`/fmcg/approvals/${selected.id}/approve`, {}, { preserveScroll: true });
     };
 
     const handleReject = () => {
-        if (!selected) return;
+        if (!selected || isOps) return;
         router.post(`/fmcg/approvals/${selected.id}/reject`, {}, { preserveScroll: true });
     };
 
     return (
         <FmcgPageShell title="Approvals">
+            {isOps && (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow-sm">
+                    <span className="font-semibold">⚠️ Read-Only Operations Access:</span> Your account is assigned the <strong className="font-semibold">Ops</strong> role. Only <strong className="font-semibold">Approvers</strong> and <strong className="font-semibold">Admins</strong> can approve or reject policy-flagged orders.
+                </div>
+            )}
+
             <PageHeader
                 eyebrow="Risk Controls"
                 title="Approval Inbox"
@@ -105,9 +113,9 @@ export default function ApprovalsPage({ orders }: { orders: ApprovalOrder[] }) {
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
-                                    <Button onClick={handleApprove} className="bg-emerald-600 hover:bg-emerald-700">Approve</Button>
-                                    <Button onClick={handleReject} variant="destructive">Reject</Button>
-                                    <Button variant="outline">Request Changes</Button>
+                                    <Button onClick={handleApprove} disabled={isOps} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">Approve</Button>
+                                    <Button onClick={handleReject} disabled={isOps} variant="destructive" className="disabled:opacity-50 disabled:cursor-not-allowed">Reject</Button>
+                                    <Button variant="outline" disabled={isOps} className="disabled:opacity-50 disabled:cursor-not-allowed">Request Changes</Button>
                                 </div>
                             </>
                         ) : (
