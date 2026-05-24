@@ -26,6 +26,18 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
 
+        Gate::define('access-operations', function (\App\Models\User $user) {
+            return $user->hasRole(['ops', 'admin']);
+        });
+
+        Gate::define('access-commercial-review', function (\App\Models\User $user) {
+            return $user->hasRole(['approver', 'admin']);
+        });
+
+        Gate::define('access-admin-settings', function (\App\Models\User $user) {
+            return $user->isAdmin();
+        });
+
         Gate::define('approve-order', function (\App\Models\User $user) {
             return $user->hasRole(['approver', 'admin']);
         });

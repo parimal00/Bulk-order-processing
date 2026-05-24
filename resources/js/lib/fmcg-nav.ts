@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import type { NavItem } from '@/types';
 
-export const fmcgNavItems: NavItem[] = [
+const allFmcgNavItems: NavItem[] = [
     { title: 'Dashboard', href: '/dashboard', icon: Gauge },
     { title: 'Uploads', href: '/fmcg/uploads', icon: FileSpreadsheet },
     { title: 'Processing', href: '/fmcg/processing', icon: Shuffle },
@@ -20,3 +20,21 @@ export const fmcgNavItems: NavItem[] = [
     { title: 'Audit Trail', href: '/fmcg/audit', icon: Activity },
     { title: 'Settings', href: '/fmcg/settings/pricing-rules', icon: Settings },
 ];
+
+export function getFmcgNavItems(role?: string): NavItem[] {
+    const safeRole = role ?? 'ops';
+
+    if (safeRole === 'admin') {
+        return allFmcgNavItems;
+    }
+
+    if (safeRole === 'approver') {
+        return allFmcgNavItems.filter((item) =>
+            ['/dashboard', '/fmcg/approvals', '/fmcg/orders', '/fmcg/reconciliation'].includes(item.href)
+        );
+    }
+
+    return allFmcgNavItems.filter((item) =>
+        ['/dashboard', '/fmcg/uploads', '/fmcg/processing'].includes(item.href)
+    );
+}

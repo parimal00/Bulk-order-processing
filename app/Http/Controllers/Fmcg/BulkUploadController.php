@@ -54,7 +54,11 @@ class BulkUploadController extends Controller
 
         ProcessBulkUploadJob::dispatch($upload);
 
-        return redirect()->route('fmcg.orders.index')->with('success', 'Processing started. Orders will appear here shortly.');
+        $redirectRoute = auth()->user()?->hasRole(['approver', 'admin'])
+            ? 'fmcg.orders.index'
+            : 'fmcg.uploads.index';
+
+        return redirect()->route($redirectRoute)->with('success', 'Processing started. Orders will appear here shortly.');
     }
 
     /**

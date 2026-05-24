@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { ClipboardList } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -13,7 +13,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { fmcgNavItems } from '@/lib/fmcg-nav';
+import { getFmcgNavItems } from '@/lib/fmcg-nav';
 import type { NavItem } from '@/types';
 
 const footerNavItems: NavItem[] = [
@@ -25,6 +25,11 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage<any>().props;
+    const role = auth?.user?.role as string | undefined;
+    const navItems = getFmcgNavItems(role);
+    const footerItems = role === 'ops' || role === 'admin' ? footerNavItems : [];
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -40,11 +45,11 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={fmcgNavItems} />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                <NavFooter items={footerItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>
