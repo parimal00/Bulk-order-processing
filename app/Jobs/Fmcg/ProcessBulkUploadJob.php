@@ -58,14 +58,15 @@ class ProcessBulkUploadJob implements ShouldQueue
 
             // Idempotency: Check if an order already exists for this upload
             if (Order::where('bulk_upload_id', $upload->id)->exists()) {
-                $upload->update(['status' => BulkUpload::STATUS_PROCESSED]);
                 return;
             }
 
             // Execute processing in a retry-safe database transaction (retries up to 3 times on deadlocks)
             DB::transaction(function () use ($upload, $pricingEngine, $inventoryEngine) {
                 // 1. Fetch invalid row numbers to skip them
-                $invalidRowNumbers = $upload->validationErrors()->pluck('row_number')->flip()->toArray();
+                $invalidRowNumbers = $upload->validationErrors()->pluck('row_number');
+                $failedRowNumbers = $upload->failedRows()->pluck('row_number');
+                $skipRowNumbers = $invalidRowNumbers->merge($failedRowNumbers)->flip()->toArray();
 
                 // 2. Read the CSV
                 $csv = Reader::createFromPath(Storage::path($upload->storage_path), 'r');
@@ -124,8 +125,8 @@ class ProcessBulkUploadJob implements ShouldQueue
                 $records = $csv->getRecords();
 
                 foreach ($records as $index => $record) {
-                    // Skip invalid rows
-                    if (isset($invalidRowNumbers[$index])) {
+                    // Skip invalid or failed rows
+                    if (isset($skipRowNumbers[$index])) {
                         continue;
                     }
 

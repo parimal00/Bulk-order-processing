@@ -43,11 +43,13 @@ export default function OrderDetailPage({ order, activities }: { order: OrderDet
     const isOps = auth?.user?.role === 'ops';
 
     const handleApprove = () => {
+        // Only allow non‑ops users to trigger the approval endpoint
         if (isOps) return;
         router.post(`/fmcg/approvals/${order.id}/approve`, {}, { preserveScroll: true });
     };
 
     const handleReject = () => {
+        // Only allow non‑ops users to trigger the reject endpoint
         if (isOps) return;
         router.post(`/fmcg/approvals/${order.id}/reject`, {}, { preserveScroll: true });
     };
@@ -75,11 +77,12 @@ export default function OrderDetailPage({ order, activities }: { order: OrderDet
                 title={`${order.order_number} - ${order.customer_name}`}
                 description="Detailed line-level view including pricing, warehouse allocation, backorders, and approval history."
                 actions={
-                    order.status === 'pending_review'
+                    // Show approve/reject for any order that is not in a final state
+                    !['approved', 'rejected', 'processed'].includes(order.status)
                         ? [
-                              <Button key="app" onClick={handleApprove} disabled={isOps} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">Approve Release</Button>,
-                              <Button key="rej" onClick={handleReject} disabled={isOps} variant="destructive" className="disabled:opacity-50 disabled:cursor-not-allowed">Reject Order</Button>
-                          ]
+                            <Button key="app" onClick={handleApprove} disabled={isOps} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">Approve Release</Button>,
+                            <Button key="rej" onClick={handleReject} disabled={isOps} variant="destructive" className="disabled:opacity-50 disabled:cursor-not-allowed">Reject Order</Button>
+                        ]
                         : ['Notify Warehouse', 'Export Manifest']
                 }
             />
@@ -92,7 +95,7 @@ export default function OrderDetailPage({ order, activities }: { order: OrderDet
                             <StatusPill value={order.status} />
                         </div>
                         <p className="text-sm text-slate-600">{getStatusExplanation()}</p>
-                        
+
                         {/* Progress Bar */}
                         <div className="mt-3">
                             <div className="flex justify-between text-xs font-semibold text-slate-500 mb-1">
@@ -100,14 +103,13 @@ export default function OrderDetailPage({ order, activities }: { order: OrderDet
                                 <span>{order.fulfillment}%</span>
                             </div>
                             <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                                <div 
-                                    className={`h-full rounded-full transition-all duration-500 ${
-                                        order.fulfillment === 100 
-                                            ? 'bg-emerald-500' 
-                                            : order.fulfillment > 0 
-                                            ? 'bg-amber-500' 
+                                <div
+                                    className={`h-full rounded-full transition-all duration-500 ${order.fulfillment === 100
+                                        ? 'bg-emerald-500'
+                                        : order.fulfillment > 0
+                                            ? 'bg-amber-500'
                                             : 'bg-rose-500'
-                                    }`}
+                                        }`}
                                     style={{ width: `${order.fulfillment}%` }}
                                 ></div>
                             </div>
@@ -201,13 +203,12 @@ export default function OrderDetailPage({ order, activities }: { order: OrderDet
                                 <div className="relative border-l border-slate-200 pl-4 ml-2 space-y-5">
                                     {activities.map((activity) => (
                                         <div key={activity.id} className="relative">
-                                            <span className={`absolute -left-[21px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full ring-4 ring-white ${
-                                                activity.action.toLowerCase().includes('approve') 
-                                                    ? 'bg-emerald-500' 
-                                                    : activity.action.toLowerCase().includes('reject') 
-                                                    ? 'bg-rose-500' 
+                                            <span className={`absolute -left-[21px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full ring-4 ring-white ${activity.action.toLowerCase().includes('approve')
+                                                ? 'bg-emerald-500'
+                                                : activity.action.toLowerCase().includes('reject')
+                                                    ? 'bg-rose-500'
                                                     : 'bg-cyan-500'
-                                            }`}></span>
+                                                }`}></span>
                                             <div className="flex items-center justify-between text-xs text-slate-400">
                                                 <span className="font-semibold text-slate-700">{activity.actor}</span>
                                                 <span>{activity.timestamp}</span>

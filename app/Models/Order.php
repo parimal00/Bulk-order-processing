@@ -11,6 +11,10 @@ class Order extends Model
 {
     use HasFactory;
 
+    const STATUS_PENDING_REVIEW = 'pending_review';
+    const STATUS_APPROVED = 'approved'; // Represents any final approved state (e.g., allocated, partially_fulfilled)
+    const STATUS_REJECTED = 'rejected';
+
     protected $fillable = [
         'bulk_upload_id',
         'customer_id',
@@ -128,6 +132,17 @@ class Order extends Model
         }
 
         return 'medium';
+    }
+
+    /**
+     * Determine if the order is in a finalised state (approved or rejected).
+     * Checks both status constants and timestamp columns for safety.
+     */
+    public function isFinalised(): bool
+    {
+        return in_array($this->status, [self::STATUS_APPROVED, self::STATUS_REJECTED])
+            || $this->approved_at !== null
+            || $this->rejected_at !== null;
     }
 }
 

@@ -21,6 +21,8 @@ class BulkUpload extends Model
 
     public const STATUS_PROCESSING = 'processing';
 
+    public const STATUS_FAILED_ROWS = 'failed_rows';
+
     public const STATUS_PROCESSED = 'processed';
 
     protected $fillable = [
@@ -72,4 +74,10 @@ class BulkUpload extends Model
     {
         return $this->hasMany(ValidationError::class);
     }
-}
+    public function failedRows(): HasMany
+    {
+        return $this->hasMany(FailedBulkRow::class);
+    }
+
+    }
+

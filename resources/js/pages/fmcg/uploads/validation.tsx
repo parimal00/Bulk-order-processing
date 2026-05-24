@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
 import { router } from '@inertiajs/react';
+import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
 
 interface ValidationError {
     id: number;
@@ -32,13 +32,17 @@ interface ValidationProps {
 export default function UploadValidationPage({ upload, errors }: ValidationProps) {
     useEffect(() => {
         let interval: NodeJS.Timeout;
+
         if (upload.status === 'validating') {
             interval = setInterval(() => {
                 router.reload({ only: ['upload', 'errors'] });
             }, 2000);
         }
+
         return () => {
-            if (interval) clearInterval(interval);
+            if (interval) {
+                clearInterval(interval);
+            }
         };
     }, [upload.status]);
 
@@ -48,6 +52,10 @@ export default function UploadValidationPage({ upload, errors }: ValidationProps
         });
     };
 
+    const handleExportErrors = () => {
+        window.location.href = `/fmcg/uploads/${upload.id}/download-failed`;
+    };
+
     return (
         <FmcgPageShell title="Validation Results">
             <PageHeader
@@ -55,7 +63,14 @@ export default function UploadValidationPage({ upload, errors }: ValidationProps
                 title={`Upload Validation Results #${upload.id}`}
                 description="Review row-level errors, fix issues, and decide whether to process valid rows immediately or hold the entire batch."
                 actions={[
-                    'Export Errors',
+                    <Button
+                        key="export-errors"
+                        variant="outline"
+                        disabled={upload.invalid_rows === 0 || upload.status === 'validating'}
+                        onClick={handleExportErrors}
+                    >
+                        Export Errors
+                    </Button>,
                     'Re-Validate',
                     <Button
                         key="process"
@@ -90,7 +105,7 @@ export default function UploadValidationPage({ upload, errors }: ValidationProps
                 </div>
             )}
 
-            {upload.status !== 'validating' && upload.invalid_rows > 0 && (
+            {upload.status !== 'validating' && errors.data.length > 0 && (
                 <SectionCard title="Error Queue" subtitle={`Showing page ${errors.current_page} of ${errors.last_page}`}>
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[760px] text-left text-sm">

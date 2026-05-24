@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use App\Models\FailedBulkRow;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use League\Csv\Reader;
@@ -47,6 +48,7 @@ class ValidateBulkUploadJob implements ShouldQueue
             $invalidRows = 0;
 
             $errorsToInsert = [];
+        $failedRowsToInsert = [];
 
             // Collect all unique SKUs in the file for faster validation
             $fileSkus = [];
@@ -151,6 +153,17 @@ class ValidateBulkUploadJob implements ShouldQueue
                             'created_at' => now(),
                             'updated_at' => now(),
                         ];
+                        $failedRowsToInsert[] = [
+                            'bulk_upload_id' => $this->upload->id,
+                            'row_number' => $rowNumber,
+                            'sku' => $sku,
+                            'quantity' => is_numeric($error['raw_value']) ? (int) $error['raw_value'] : null,
+                            'error_code' => $error['error_code'],
+                            'error_message' => $error['error_message'],
+                            'raw_data' => json_encode($record),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
                     }
                 } else {
                     $validRows++;
@@ -161,14 +174,21 @@ class ValidateBulkUploadJob implements ShouldQueue
                     ValidationError::insert($errorsToInsert);
                     $errorsToInsert = [];
                 }
+                if (count($failedRowsToInsert) >= 500) {
+                    FailedBulkRow::insert($failedRowsToInsert);
+                    $failedRowsToInsert = [];
+                }
             }
 
             if (count($errorsToInsert) > 0) {
                 ValidationError::insert($errorsToInsert);
             }
+            if (count($failedRowsToInsert) > 0) {
+                FailedBulkRow::insert($failedRowsToInsert);
+            }
 
             $this->upload->update([
-                'status' => $invalidRows > 0 ? BulkUpload::STATUS_INVALID : BulkUpload::STATUS_VALID,
+                'status' => $invalidRows > 0 ? BulkUpload::STATUS_FAILED_ROWS : BulkUpload::STATUS_VALID,
                 'total_rows' => $totalRows,
                 'valid_rows' => $validRows,
                 'invalid_rows' => $invalidRows,

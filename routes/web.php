@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Level;
 use App\Http\Controllers\Fmcg\BulkUploadController;
 use App\Http\Controllers\Fmcg\OrderApprovalController;
 use App\Http\Controllers\Fmcg\OrderController;
@@ -29,8 +30,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('uploads.new');
         Route::get('uploads/{upload}/validation', [BulkUploadController::class, 'validation'])->name('uploads.validation');
         Route::post('bulk-uploads', [BulkUploadController::class, 'store'])->name('bulk-uploads.store');
+        // Classical fix‑and‑re‑upload: download original CSV with errors
+        Route::get('uploads/{upload}/download', [BulkUploadController::class, 'downloadOriginal'])->name('uploads.download');
+        // Upload a corrected CSV and start a fresh validation run
+        Route::post('uploads/{upload}/replace', [BulkUploadController::class, 'replace'])->name('uploads.replace');
         Route::post('bulk-uploads/{upload}/process-mapping', [BulkUploadController::class, 'processMapping'])->name('bulk-uploads.process-mapping');
         Route::post('bulk-uploads/{upload}/process', [BulkUploadController::class, 'process'])->name('bulk-uploads.process');
+        Route::get('uploads/{upload}/download-failed', [BulkUploadController::class, 'downloadFailedRows'])->name('uploads.downloadFailed');
 
         Route::inertia('processing', 'fmcg/processing')->name('processing');
         Route::get('approvals', [OrderApprovalController::class, 'index'])->name('approvals');

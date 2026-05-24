@@ -14,8 +14,8 @@ class OrderApprovalController extends Controller
 {
     public function index()
     {
-        $orders = Order::with('customer')
-            ->where('status', 'pending_review')
+                $orders = Order::with('customer')
+            ->whereNotIn('status', [Order::STATUS_APPROVED, Order::STATUS_REJECTED])
             ->latest('placed_at')
             ->get();
 
@@ -28,8 +28,8 @@ class OrderApprovalController extends Controller
     {
         Gate::authorize('approve-order');
 
-        if ($order->status !== 'pending_review') {
-            return back()->with('error', 'Only pending orders can be approved.');
+        if ($order->isFinalised()) {
+            return back()->with('error', 'Order is already finalised and cannot be approved.');
         }
 
         $status = $order->determineFulfillmentStatus();
@@ -52,8 +52,8 @@ class OrderApprovalController extends Controller
     {
         Gate::authorize('approve-order');
 
-        if ($order->status !== 'pending_review') {
-            return back()->with('error', 'Only pending orders can be rejected.');
+        if ($order->isFinalised()) {
+            return back()->with('error', 'Order is already finalised and cannot be rejected.');
         }
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($order, $inventoryEngine) {
