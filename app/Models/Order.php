@@ -77,6 +77,11 @@ class Order extends Model
         return $this->hasMany(OrderLine::class);
     }
 
+    public function integrations(): HasMany
+    {
+        return $this->hasMany(OrderIntegration::class);
+    }
+
     /**
      * Determine what the order status should be based on its lines' stock allocation.
      * Optionally accepts allocated and backordered quantities (e.g. during bulk import).
@@ -145,4 +150,3 @@ class Order extends Model
             || $this->rejected_at !== null;
     }
 }
-

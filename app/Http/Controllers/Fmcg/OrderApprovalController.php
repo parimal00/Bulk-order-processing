@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Fmcg;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Fmcg\OrderApprovalResource;
+use App\Jobs\Fmcg\SendOrderToIntegrationJob;
 use App\Models\Order;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
@@ -44,6 +45,8 @@ class OrderApprovalController extends Controller
             'order_number' => $order->order_number,
             'status_moved_to' => $status,
         ]);
+
+        SendOrderToIntegrationJob::dispatch($order->id)->afterCommit();
 
         return back()->with('success', "Order {$order->order_number} has been approved and moved to {$status}.");
     }

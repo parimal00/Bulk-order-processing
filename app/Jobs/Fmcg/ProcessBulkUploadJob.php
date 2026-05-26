@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Fmcg;
 
+use App\Jobs\Fmcg\SendOrderToIntegrationJob;
 use App\Models\BulkUpload;
 use App\Models\Order;
 use App\Models\OrderLine;
@@ -212,6 +213,11 @@ class ProcessBulkUploadJob implements ShouldQueue
                     'status' => $orderStatus,
                 ]);
 
+                //dispatch integration job immediately if auto-approved, otherwise it will be dispatched when manually approved
+                if ($orderStatus !== Order::STATUS_PENDING_REVIEW) {
+                    SendOrderToIntegrationJob::dispatch($order->id)->afterCommit();
+                }
+
                 // Mark upload as processed
                 $upload->update([
                     'status' => BulkUpload::STATUS_PROCESSED,
@@ -247,4 +253,3 @@ class ProcessBulkUploadJob implements ShouldQueue
         }
     }
 }
-

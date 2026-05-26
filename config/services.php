@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'erp_stub' => [
+        'webhook_token' => env('ERP_STUB_WEBHOOK_TOKEN', 'erp-stub-token'),
+    ],
+
 ];

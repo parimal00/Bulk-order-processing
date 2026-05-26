@@ -2,10 +2,12 @@
 
 use App\Enums\Level;
 use App\Http\Controllers\Fmcg\BulkUploadController;
+use App\Http\Controllers\Fmcg\IntegrationWebhookController;
 use App\Http\Controllers\Fmcg\OrderApprovalController;
 use App\Http\Controllers\Fmcg\OrderController;
 use App\Models\BulkUpload;
 use App\Services\Fmcg\BulkUploadService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -13,6 +15,10 @@ use Laravel\Fortify\Features;
 Route::inertia('/', 'welcome', [
     'canRegister' => Features::enabled(Features::registration()),
 ])->name('home');
+
+Route::post('integrations/webhooks/order-sync', [IntegrationWebhookController::class, 'orderSync'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('integrations.webhooks.order-sync');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'fmcg/dashboard')->name('dashboard');
