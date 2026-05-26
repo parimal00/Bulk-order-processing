@@ -36,6 +36,8 @@ class AuditLogResource extends JsonResource
             $detailsSentence = "Outbound ERP stub sync dispatched successfully.";
         } elseif ($this->action === 'integration_sync_failed') {
             $detailsSentence = "Outbound ERP stub sync failed and requires retry.";
+        } elseif ($this->action === 'integration_sync_retry_requested') {
+            $detailsSentence = "Manual integration retry was requested from reconciliation view.";
         } elseif ($this->action === 'integration_callback_received') {
             $detailsSentence = "Webhook callback received from external integration.";
         } else {

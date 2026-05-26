@@ -5,6 +5,7 @@ use App\Http\Controllers\Fmcg\BulkUploadController;
 use App\Http\Controllers\Fmcg\IntegrationWebhookController;
 use App\Http\Controllers\Fmcg\OrderApprovalController;
 use App\Http\Controllers\Fmcg\OrderController;
+use App\Http\Controllers\Fmcg\ReconciliationController;
 use App\Models\BulkUpload;
 use App\Services\Fmcg\BulkUploadService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -56,7 +57,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
             Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 
-            Route::inertia('reconciliation', 'fmcg/reconciliation')->name('reconciliation');
+            Route::get('reconciliation', [ReconciliationController::class, 'index'])->name('reconciliation');
+            Route::post('reconciliation/{integration}/retry', [ReconciliationController::class, 'retry'])->name('reconciliation.retry');
         });
 
         Route::middleware('can:access-admin-settings')->group(function () {
