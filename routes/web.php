@@ -1,11 +1,13 @@
 <?php
 
-use App\Enums\Level;
+use App\Http\Controllers\Fmcg\AuditLogController;
 use App\Http\Controllers\Fmcg\BulkUploadController;
+use App\Http\Controllers\Fmcg\DashboardController;
 use App\Http\Controllers\Fmcg\IntegrationWebhookController;
 use App\Http\Controllers\Fmcg\OrderApprovalController;
 use App\Http\Controllers\Fmcg\OrderController;
 use App\Http\Controllers\Fmcg\ReconciliationController;
+use App\Http\Controllers\Fmcg\TeamSettingsController;
 use App\Models\BulkUpload;
 use App\Services\Fmcg\BulkUploadService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -22,7 +24,7 @@ Route::post('integrations/webhooks/order-sync', [IntegrationWebhookController::c
     ->name('integrations.webhooks.order-sync');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'fmcg/dashboard')->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::prefix('fmcg')->name('fmcg.')->group(function () {
         Route::middleware('can:access-operations')->group(function () {
@@ -62,12 +64,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
 
         Route::middleware('can:access-admin-settings')->group(function () {
-            Route::get('audit', [App\Http\Controllers\Fmcg\AuditLogController::class, 'index'])->name('audit');
+            Route::get('audit', [AuditLogController::class, 'index'])->name('audit');
 
             Route::inertia('settings/pricing-rules', 'fmcg/settings/pricing-rules')->name('settings.pricing-rules');
             Route::inertia('settings/inventory-rules', 'fmcg/settings/inventory-rules')->name('settings.inventory-rules');
-            Route::get('settings/users-roles', [App\Http\Controllers\Fmcg\TeamSettingsController::class, 'index'])->name('settings.users-roles');
-            Route::put('settings/users-roles/{user}', [App\Http\Controllers\Fmcg\TeamSettingsController::class, 'update'])->name('settings.users-roles.update');
+            Route::get('settings/users-roles', [TeamSettingsController::class, 'index'])->name('settings.users-roles');
+            Route::put('settings/users-roles/{user}', [TeamSettingsController::class, 'update'])->name('settings.users-roles.update');
         });
     });
 });

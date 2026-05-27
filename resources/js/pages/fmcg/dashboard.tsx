@@ -1,19 +1,67 @@
 import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { KpiGrid, MiniBars, PageHeader, SectionCard, StatusPill } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
-import { chartFailures, chartThroughput, dashboardKpis, processingJobs, uploads } from '@/lib/fmcg-data';
+import type { Kpi } from '@/lib/fmcg-data';
 
-export default function FmcgDashboardPage() {
+type DashboardRisk = {
+    title: string;
+    detail: string;
+    tone: 'critical' | 'warning' | 'notice' | 'ok';
+};
+
+type DashboardPageProps = {
+    kpis: Kpi[];
+    throughput: Array<{ hour: string; lines: number }>;
+    failures: Array<{ day: string; count: number }>;
+    atRisk: {
+        sync: DashboardRisk;
+        approvals: DashboardRisk;
+        inventory: DashboardRisk;
+    };
+    recentUploads: Array<{
+        id: string;
+        customer: string;
+        rows: number;
+        validPercent: number;
+        status: string;
+    }>;
+    processingJobs: Array<{
+        id: string;
+        uploadId: string;
+        step: string;
+        progress: number;
+        status: string;
+        elapsed: string;
+    }>;
+    headerActions: Array<{ label: string; href: string }>;
+};
+
+export default function FmcgDashboardPage({
+    kpis,
+    throughput,
+    failures,
+    atRisk,
+    recentUploads,
+    processingJobs,
+    headerActions,
+}: DashboardPageProps) {
+    const riskToneClassMap: Record<DashboardRisk['tone'], string> = {
+        critical: 'border-red-100 bg-red-50/70 text-red-700',
+        warning: 'border-amber-100 bg-amber-50/70 text-amber-700',
+        notice: 'border-cyan-100 bg-cyan-50/70 text-cyan-700',
+        ok: 'border-emerald-100 bg-emerald-50/70 text-emerald-700',
+    };
+
     return (
         <FmcgPageShell title="FMCG Dashboard">
             <PageHeader
                 eyebrow="FMCG Control Tower"
                 title="Bulk Order Operations"
                 description="Monitor upload health, processing throughput, approvals backlog, and sync reliability across wholesale order flows."
-                actions={['New Upload', 'Review Exceptions', 'Run Reconciliation']}
+                actions={headerActions}
             />
 
-            <KpiGrid items={dashboardKpis} />
+            <KpiGrid items={kpis} />
 
             <div className="grid gap-4 xl:grid-cols-3">
                 <SectionCard
@@ -21,7 +69,7 @@ export default function FmcgDashboardPage() {
                     subtitle="Line items processed in the current operating day"
                     right={<Button variant="outline" size="sm">Last 24h</Button>}
                 >
-                    <MiniBars items={chartThroughput} keyLabel="hour" keyValue="lines" />
+                    <MiniBars items={throughput} keyLabel="hour" keyValue="lines" />
                 </SectionCard>
 
                 <SectionCard
@@ -29,22 +77,22 @@ export default function FmcgDashboardPage() {
                     subtitle="Validation, processing, and sync exception counts"
                     right={<Button variant="outline" size="sm">Last 7d</Button>}
                 >
-                    <MiniBars items={chartFailures} keyLabel="day" keyValue="count" />
+                    <MiniBars items={failures} keyLabel="day" keyValue="count" />
                 </SectionCard>
 
                 <SectionCard title="At Risk" subtitle="Items that may breach SLA or need manual action">
                     <div className="space-y-3 text-sm">
-                        <div className="rounded-xl border border-red-100 bg-red-50/70 p-3">
-                            <p className="font-medium text-red-700">ERP sync stalled: SO-55015</p>
-                            <p className="text-red-600">3 retries exhausted. Last attempt 10:57.</p>
+                        <div className={`rounded-xl border p-3 ${riskToneClassMap[atRisk.sync.tone]}`}>
+                            <p className="font-medium">{atRisk.sync.title}</p>
+                            <p className="text-current/90">{atRisk.sync.detail}</p>
                         </div>
-                        <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3">
-                            <p className="font-medium text-amber-700">Approval queue above threshold</p>
-                            <p className="text-amber-600">16 pending approvals, SLA target is 10.</p>
+                        <div className={`rounded-xl border p-3 ${riskToneClassMap[atRisk.approvals.tone]}`}>
+                            <p className="font-medium">{atRisk.approvals.title}</p>
+                            <p className="text-current/90">{atRisk.approvals.detail}</p>
                         </div>
-                        <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 p-3">
-                            <p className="font-medium text-cyan-700">Inventory split risk</p>
-                            <p className="text-cyan-600">2 uploads with backorder ratio above 25%.</p>
+                        <div className={`rounded-xl border p-3 ${riskToneClassMap[atRisk.inventory.tone]}`}>
+                            <p className="font-medium">{atRisk.inventory.title}</p>
+                            <p className="text-current/90">{atRisk.inventory.detail}</p>
                         </div>
                     </div>
                 </SectionCard>
@@ -64,7 +112,7 @@ export default function FmcgDashboardPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {uploads.slice(0, 4).map((upload) => (
+                                {recentUploads.slice(0, 4).map((upload) => (
                                     <tr key={upload.id}>
                                         <td className="py-2 font-medium text-slate-800">{upload.id}</td>
                                         <td className="py-2 text-slate-700">{upload.customer}</td>
@@ -73,6 +121,13 @@ export default function FmcgDashboardPage() {
                                         <td className="py-2"><StatusPill value={upload.status} /></td>
                                     </tr>
                                 ))}
+                                {recentUploads.length === 0 && (
+                                    <tr>
+                                        <td className="py-6 text-center text-slate-500" colSpan={5}>
+                                            No uploads yet.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -95,6 +150,11 @@ export default function FmcgDashboardPage() {
                                 </div>
                             </div>
                         ))}
+                        {processingJobs.length === 0 && (
+                            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                                No active processing jobs right now.
+                            </p>
+                        )}
                     </div>
                 </SectionCard>
             </div>

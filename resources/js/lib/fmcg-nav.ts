@@ -21,6 +21,14 @@ const allFmcgNavItems: NavItem[] = [
     { title: 'Settings', href: '/fmcg/settings/pricing-rules', icon: Settings },
 ];
 
+function navHrefPath(href: NavItem['href']): string {
+    if (typeof href === 'string') {
+        return href;
+    }
+
+    return Array.isArray(href) ? href[0] : '';
+}
+
 export function getFmcgNavItems(role?: string): NavItem[] {
     const safeRole = role ?? 'ops';
 
@@ -30,11 +38,11 @@ export function getFmcgNavItems(role?: string): NavItem[] {
 
     if (safeRole === 'approver') {
         return allFmcgNavItems.filter((item) =>
-            ['/dashboard', '/fmcg/approvals', '/fmcg/orders', '/fmcg/reconciliation'].includes(item.href)
+            ['/dashboard', '/fmcg/approvals', '/fmcg/orders', '/fmcg/reconciliation'].includes(navHrefPath(item.href))
         );
     }
 
     return allFmcgNavItems.filter((item) =>
-        ['/dashboard', '/fmcg/uploads', '/fmcg/processing'].includes(item.href)
+        ['/dashboard', '/fmcg/uploads', '/fmcg/processing'].includes(navHrefPath(item.href))
     );
 }
