@@ -3,6 +3,7 @@ import { router } from '@inertiajs/react';
 import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard } from '@/components/fmcg/ui';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 type AuditRecord = {
     id: number;
@@ -13,26 +14,54 @@ type AuditRecord = {
     details: string;
 };
 
-export default function AuditPage({ auditTrail, filters }: { auditTrail: AuditRecord[]; filters: any }) {
+type AuditFilters = {
+    actor?: string;
+    action?: string;
+    entity?: string;
+    order?: string;
+    upload?: string;
+    user?: string;
+    from?: string;
+    to?: string;
+};
+
+export default function AuditPage({ auditTrail, filters }: { auditTrail: AuditRecord[]; filters: AuditFilters }) {
     const [actor, setActor] = useState(filters.actor ?? '');
     const [action, setAction] = useState(filters.action ?? '');
     const [entity, setEntity] = useState(filters.entity ?? '');
+    const [order, setOrder] = useState(filters.order ?? '');
+    const [upload, setUpload] = useState(filters.upload ?? '');
+    const [user, setUser] = useState(filters.user ?? '');
+    const [from, setFrom] = useState(filters.from ?? '');
+    const [to, setTo] = useState(filters.to ?? '');
 
-    // Reactive server-side dynamic query with a 400ms input debounce
+    // Reactive server-side query with debounce
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
-            router.get('/fmcg/audit', 
-                { actor, action, entity }, 
+            router.get(
+                '/fmcg/audit',
+                { actor, action, entity, order, upload, user, from, to },
                 {
                     preserveState: true,
                     preserveScroll: true,
-                    replace: true
-                }
+                    replace: true,
+                },
             );
         }, 400);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [actor, action, entity]);
+    }, [actor, action, entity, order, upload, user, from, to]);
+
+    const resetFilters = () => {
+        setActor('');
+        setAction('');
+        setEntity('');
+        setOrder('');
+        setUpload('');
+        setUser('');
+        setFrom('');
+        setTo('');
+    };
 
     return (
         <FmcgPageShell title="Audit Trail">
@@ -44,11 +73,18 @@ export default function AuditPage({ auditTrail, filters }: { auditTrail: AuditRe
             />
 
             <SectionCard title="Event Stream" subtitle="System and user actions ordered by timestamp">
-                <div className="mb-6 grid gap-3 md:grid-cols-3">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                    <p className="text-xs text-slate-500">Filters: actor, action, entity, order, upload, user, date range.</p>
+                    <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
+                        Clear Filters
+                    </Button>
+                </div>
+
+                <div className="mb-6 grid gap-3 md:grid-cols-4">
                     <div>
                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Search Actor</label>
-                        <Input 
-                            placeholder="e.g. System Job, Manual Approver" 
+                        <Input
+                            placeholder="e.g. System Job, Manual Approver"
                             value={actor}
                             onChange={(e) => setActor(e.target.value)}
                             className="bg-slate-50/50 hover:bg-slate-50 focus:bg-white transition-colors"
@@ -56,8 +92,8 @@ export default function AuditPage({ auditTrail, filters }: { auditTrail: AuditRe
                     </div>
                     <div>
                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Search Action</label>
-                        <Input 
-                            placeholder="e.g. Order Approved, Role Updated" 
+                        <Input
+                            placeholder="e.g. order_approved"
                             value={action}
                             onChange={(e) => setAction(e.target.value)}
                             className="bg-slate-50/50 hover:bg-slate-50 focus:bg-white transition-colors"
@@ -65,10 +101,55 @@ export default function AuditPage({ auditTrail, filters }: { auditTrail: AuditRe
                     </div>
                     <div>
                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Search Entity / ID</label>
-                        <Input 
+                        <Input
                             placeholder="e.g. ORD-X, UPL-Y" 
                             value={entity}
                             onChange={(e) => setEntity(e.target.value)}
+                            className="bg-slate-50/50 hover:bg-slate-50 focus:bg-white transition-colors"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Order</label>
+                        <Input
+                            placeholder="e.g. ORD-55012"
+                            value={order}
+                            onChange={(e) => setOrder(e.target.value)}
+                            className="bg-slate-50/50 hover:bg-slate-50 focus:bg-white transition-colors"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Upload</label>
+                        <Input
+                            placeholder="e.g. UPL-2403 or 2403"
+                            value={upload}
+                            onChange={(e) => setUpload(e.target.value)}
+                            className="bg-slate-50/50 hover:bg-slate-50 focus:bg-white transition-colors"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">User</label>
+                        <Input
+                            placeholder="e.g. admin@example.com"
+                            value={user}
+                            onChange={(e) => setUser(e.target.value)}
+                            className="bg-slate-50/50 hover:bg-slate-50 focus:bg-white transition-colors"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">From Date</label>
+                        <Input
+                            type="date"
+                            value={from}
+                            onChange={(e) => setFrom(e.target.value)}
+                            className="bg-slate-50/50 hover:bg-slate-50 focus:bg-white transition-colors"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">To Date</label>
+                        <Input
+                            type="date"
+                            value={to}
+                            onChange={(e) => setTo(e.target.value)}
                             className="bg-slate-50/50 hover:bg-slate-50 focus:bg-white transition-colors"
                         />
                     </div>
