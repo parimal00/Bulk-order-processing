@@ -27,6 +27,8 @@ class ProcessBulkUploadJob implements ShouldQueue
 
     public $timeout = 300;
 
+    public $queue = 'processing';
+
     /**
      * The number of times the job may be attempted.
      */
@@ -95,7 +97,7 @@ class ProcessBulkUploadJob implements ShouldQueue
                 ]);
 
                 // Pre-fetch products to avoid N+1 queries
-                $records = $csv->getRecords();
+                $records = iterator_to_array($csv->getRecords());
                 $fileSkus = [];
                 foreach ($records as $index => $record) {
                     if (! isset($invalidRowNumbers[$index])) {
@@ -119,11 +121,6 @@ class ProcessBulkUploadJob implements ShouldQueue
                 $totalRequestedQty = 0;
                 $totalAllocatedQty = 0;
                 $totalBackorderQty = 0;
-
-                // Re-read CSV to build order lines
-                $csv = Reader::createFromPath(Storage::path($upload->storage_path), 'r');
-                $csv->setHeaderOffset(0);
-                $records = $csv->getRecords();
 
                 foreach ($records as $index => $record) {
                     // Skip invalid or failed rows

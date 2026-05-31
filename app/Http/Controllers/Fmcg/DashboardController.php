@@ -194,27 +194,20 @@ class DashboardController extends Controller
             ->count();
         $approvalThreshold = 10;
 
-        $orders = Order::query()
-            ->with('lines:id,order_id,quantity,backorder_quantity')
+        $riskUploadIds = Order::query()
+            ->withSum('lines as total_qty', 'quantity')
+            ->withSum('lines as total_backorder', 'backorder_quantity')
             ->whereNotNull('bulk_upload_id')
             ->where('created_at', '>=', $now->copy()->subDays(7))
-            ->get(['id', 'bulk_upload_id']);
+            ->get()
+            ->filter(function ($order) {
+                return $order->total_qty > 0 && ($order->total_backorder / $order->total_qty) > 0.25;
+            })
+            ->pluck('bulk_upload_id')
+            ->unique()
+            ->all();
 
-        $riskUploadIds = [];
-        foreach ($orders as $order) {
-            $requested = (int) $order->lines->sum('quantity');
-            $backordered = (int) $order->lines->sum('backorder_quantity');
-
-            if ($requested <= 0) {
-                continue;
-            }
-
-            if (($backordered / $requested) > 0.25) {
-                $riskUploadIds[] = (int) $order->bulk_upload_id;
-            }
-        }
-
-        $inventoryRiskCount = count(array_unique($riskUploadIds));
+        $inventoryRiskCount = count($riskUploadIds);
 
         return [
             'sync' => $stalledSync

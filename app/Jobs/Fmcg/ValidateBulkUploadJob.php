@@ -21,6 +21,8 @@ class ValidateBulkUploadJob implements ShouldQueue
 
     public $timeout = 300;
 
+    public $queue = 'uploads';
+
     public function __construct(public BulkUpload $upload) {}
 
     public function handle(): void
@@ -41,14 +43,14 @@ class ValidateBulkUploadJob implements ShouldQueue
                 throw new \Exception('Missing required column mapping for sku or quantity.');
             }
 
-            $records = $csv->getRecords();
+            $records = iterator_to_array($csv->getRecords());
 
             $totalRows = 0;
             $validRows = 0;
             $invalidRows = 0;
 
             $errorsToInsert = [];
-        $failedRowsToInsert = [];
+            $failedRowsToInsert = [];
 
             // Collect all unique SKUs in the file for faster validation
             $fileSkus = [];
@@ -66,10 +68,6 @@ class ValidateBulkUploadJob implements ShouldQueue
                 ->keyBy('sku');
 
             $seenSkus = []; // For duplicate detection
-
-            $csv = Reader::createFromPath(Storage::path($this->upload->storage_path), 'r');
-            $csv->setHeaderOffset(0);
-            $records = $csv->getRecords();
 
             foreach ($records as $index => $record) {
                 $rowNumber = $index;

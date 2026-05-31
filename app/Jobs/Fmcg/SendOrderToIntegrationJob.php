@@ -21,6 +21,8 @@ class SendOrderToIntegrationJob implements ShouldQueue
 
     public int $tries = 30;
 
+    // public $queue = 'integrations';
+
     /**
      * @var int[]
      */

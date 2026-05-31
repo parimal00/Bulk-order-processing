@@ -19,6 +19,8 @@ return [
 
     'default' => env('DB_CONNECTION', 'sqlite'),
 
+    'slow_query_threshold' => env('DB_SLOW_QUERY_THRESHOLD', 500),
+
     /*
     |--------------------------------------------------------------------------
     | Database Connections
