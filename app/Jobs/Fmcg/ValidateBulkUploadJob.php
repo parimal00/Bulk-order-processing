@@ -21,7 +21,7 @@ class ValidateBulkUploadJob implements ShouldQueue
 
     public $timeout = 300;
 
-    public $queue = 'uploads';
+    // public $queue = 'uploads';
 
     public function __construct(public BulkUpload $upload) {}
 

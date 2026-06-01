@@ -28,7 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('fmcg')->name('fmcg.')->group(function () {
         Route::middleware('can:access-operations')->group(function () {
-            Route::inertia('uploads', 'fmcg/uploads/index')->name('uploads.index');
+            Route::get('uploads', [BulkUploadController::class, 'index'])->name('uploads.index');
             Route::get('uploads/new/{upload?}', function (?BulkUpload $upload, BulkUploadService $service) {
                 $metadata = $upload ? $service->getCsvMetadata($upload) : [];
 

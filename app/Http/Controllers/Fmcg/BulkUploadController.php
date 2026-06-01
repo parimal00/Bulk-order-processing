@@ -16,6 +16,46 @@ use Inertia\Response;
 
 class BulkUploadController extends Controller
 {
+    public function index(): Response
+    {
+        $uploads = BulkUpload::query()
+            ->with(['customer', 'uploader'])
+            ->latest('id')
+            ->get()
+            ->map(function (BulkUpload $upload): array {
+                $totalRows = max(0, (int) $upload->total_rows);
+                $validRows = max(0, (int) $upload->valid_rows);
+
+                return [
+                    'id' => "UPL-{$upload->id}",
+                    'rawId' => $upload->id,
+                    'customer' => $upload->customer?->name ?? 'Unknown',
+                    'source' => strtoupper($upload->file_type ?? 'CSV'),
+                    'rows' => $totalRows,
+                    'validPercent' => $totalRows > 0 ? (int) round(($validRows / $totalRows) * 100) : 0,
+                    'status' => $this->mapUploadStatus($upload->status),
+                    'createdAt' => $upload->created_at ? $upload->created_at->format('M d, Y H:i') : 'N/A',
+                    'owner' => $upload->uploader?->name ?? 'System',
+                ];
+            })
+            ->values()
+            ->all();
+
+        return Inertia::render('fmcg/uploads/index', [
+            'uploads' => $uploads,
+        ]);
+    }
+
+    private function mapUploadStatus(string $status): string
+    {
+        return match ($status) {
+            BulkUpload::STATUS_VALID => 'ready',
+            BulkUpload::STATUS_FAILED_ROWS, BulkUpload::STATUS_INVALID => 'failed',
+            BulkUpload::STATUS_PROCESSED => 'completed',
+            default => $status,
+        };
+    }
+
     public function store(StoreBulkUploadRequest $request, BulkUploadService $bulkUploadService): RedirectResponse
     {
         /** @var UploadedFile $file */

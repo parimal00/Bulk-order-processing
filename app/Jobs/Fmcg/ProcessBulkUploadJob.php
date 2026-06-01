@@ -27,7 +27,7 @@ class ProcessBulkUploadJob implements ShouldQueue
 
     public $timeout = 300;
 
-    public $queue = 'processing';
+    // public $queue = 'processing';
 
     /**
      * The number of times the job may be attempted.
