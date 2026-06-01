@@ -56,6 +56,69 @@ class BulkUploadController extends Controller
         };
     }
 
+    public function processing(): Response
+    {
+        $now = now();
+        $jobs = BulkUpload::query()
+            ->latest('updated_at')
+            ->get()
+            ->map(function (BulkUpload $upload) use ($now): array {
+                $rowsProcessed = (int) $upload->valid_rows + (int) $upload->invalid_rows;
+                $totalRows = max(0, (int) $upload->total_rows);
+
+                $progress = match ($upload->status) {
+                    BulkUpload::STATUS_UPLOADED => 0,
+                    BulkUpload::STATUS_VALIDATING => $totalRows > 0 ? min(95, (int) round(($rowsProcessed / $totalRows) * 100)) : 20,
+                    BulkUpload::STATUS_PROCESSING => 70,
+                    BulkUpload::STATUS_PROCESSED => 100,
+                    BulkUpload::STATUS_VALID => 100,
+                    BulkUpload::STATUS_FAILED_ROWS, BulkUpload::STATUS_INVALID => 100,
+                    default => 0,
+                };
+
+                $step = match ($upload->status) {
+                    BulkUpload::STATUS_UPLOADED => 'Awaiting Mapping',
+                    BulkUpload::STATUS_VALIDATING => 'Validation Pipeline',
+                    BulkUpload::STATUS_VALID => 'Validation Passed',
+                    BulkUpload::STATUS_FAILED_ROWS, BulkUpload::STATUS_INVALID => 'Validation Failed',
+                    BulkUpload::STATUS_PROCESSING => 'Pricing and Allocation',
+                    BulkUpload::STATUS_PROCESSED => 'Ingestion Complete',
+                    default => 'Queued',
+                };
+
+                $status = match ($upload->status) {
+                    BulkUpload::STATUS_UPLOADED => 'queued',
+                    BulkUpload::STATUS_VALIDATING, BulkUpload::STATUS_PROCESSING => 'running',
+                    BulkUpload::STATUS_PROCESSED, BulkUpload::STATUS_VALID => 'completed',
+                    BulkUpload::STATUS_FAILED_ROWS, BulkUpload::STATUS_INVALID => 'failed',
+                    default => 'queued',
+                };
+
+                // format duration
+                $seconds = $upload->created_at ? (float) $upload->created_at->diffInSeconds($now) : 0;
+                $secondsInt = (int) round($seconds);
+                $minutes = intdiv($secondsInt, 60);
+                $remainingSeconds = $secondsInt % 60;
+                $elapsed = sprintf('%dm %02ds', $minutes, $remainingSeconds);
+
+                return [
+                    'id' => "JOB-UPL-{$upload->id}",
+                    'rawId' => $upload->id,
+                    'uploadId' => "UPL-{$upload->id}",
+                    'step' => $step,
+                    'progress' => max(0, min(100, $progress)),
+                    'status' => $status,
+                    'elapsed' => $elapsed,
+                ];
+            })
+            ->values()
+            ->all();
+
+        return Inertia::render('fmcg/processing', [
+            'jobs' => $jobs,
+        ]);
+    }
+
     public function store(StoreBulkUploadRequest $request, BulkUploadService $bulkUploadService): RedirectResponse
     {
         /** @var UploadedFile $file */

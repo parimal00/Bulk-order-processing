@@ -48,7 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('bulk-uploads/{upload}/process', [BulkUploadController::class, 'process'])->name('bulk-uploads.process');
             Route::get('uploads/{upload}/download-failed', [BulkUploadController::class, 'downloadFailedRows'])->name('uploads.downloadFailed');
 
-            Route::inertia('processing', 'fmcg/processing')->name('processing');
+            Route::get('processing', [BulkUploadController::class, 'processing'])->name('processing');
         });
 
         Route::middleware('can:access-commercial-review')->group(function () {
