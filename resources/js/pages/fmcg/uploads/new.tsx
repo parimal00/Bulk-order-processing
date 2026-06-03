@@ -1,7 +1,6 @@
 import { FmcgPageShell } from '@/components/fmcg/page-shell';
 import { PageHeader, SectionCard } from '@/components/fmcg/ui';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useEffect, useRef, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 
@@ -105,18 +104,9 @@ export default function NewUploadPage({ flash, upload, headers, sampleData }: { 
                 </div>
             </SectionCard>
 
-            <div className="grid gap-4 xl:grid-cols-2">
-                <SectionCard title="Step 2 - Source Metadata" subtitle="Tag incoming file for routing">
-                    <div className="grid gap-3">
-                        <Input defaultValue="Metro Retail Group" />
-                        <Input defaultValue="Weekly Replenishment" />
-                        <Input defaultValue="ops@metroretail.example" />
-                        <Input defaultValue="May 14, 2026" />
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="Step 3 - Column Mapping" subtitle="Assign CSV columns to required fields">
-                    <div className="space-y-4 text-sm">
+            <div className="mt-4">
+                <SectionCard title="Step 2 - Column Mapping" subtitle="Assign CSV columns to required fields">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 text-sm">
                         {headers ? (
                             systemFields.map((field) => (
                                 <div key={field.value} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -146,7 +136,7 @@ export default function NewUploadPage({ flash, upload, headers, sampleData }: { 
                                 </div>
                             ))
                         ) : (
-                            <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500">
+                            <div className="col-span-full flex flex-col items-center justify-center py-8 text-center text-slate-500">
                                 <p className="italic">Upload a file first to see column mapping</p>
                             </div>
                         )}
@@ -155,7 +145,7 @@ export default function NewUploadPage({ flash, upload, headers, sampleData }: { 
             </div>
 
             {sampleData && sampleData.length > 0 && (
-                <SectionCard title="Step 4 - Sample Preview" subtitle="First 3 rows as they will be imported">
+                <SectionCard title="Step 3 - Sample Preview" subtitle="First 3 rows as they will be imported">
                     <div className="overflow-x-auto rounded-xl border border-slate-200">
                         <table className="w-full text-left text-sm">
                             <thead className="bg-slate-50 text-slate-600">
