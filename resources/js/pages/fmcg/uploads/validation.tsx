@@ -66,18 +66,32 @@ export default function UploadValidationPage({ upload, errors }: ValidationProps
                     <Button
                         key="export-errors"
                         variant="outline"
+                        className="border-white/30 bg-transparent text-white hover:bg-white hover:text-[#0d5f74] hover:border-white transition-colors"
                         disabled={upload.invalid_rows === 0 || upload.status === 'validating'}
                         onClick={handleExportErrors}
                     >
                         Export Errors
                     </Button>,
-                    'Re-Validate',
+                    <Button
+                        key="re-validate"
+                        variant="outline"
+                        className="border-white/30 bg-transparent text-white hover:bg-white hover:text-[#0d5f74] hover:border-white transition-colors"
+                        disabled={upload.status === 'validating' || upload.status === 'processing' || upload.status === 'processed'}
+                        onClick={() => router.get(`/fmcg/uploads/new/${upload.id}`)}
+                    >
+                        Re-Validate
+                    </Button>,
                     <Button
                         key="process"
-                        disabled={upload.valid_rows === 0 || upload.status === 'validating' || upload.status === 'processing'}
+                        className="bg-white text-[#0d5f74] hover:bg-cyan-50 hover:text-[#0d5f74] transition-colors border border-transparent"
+                        disabled={upload.valid_rows === 0 || upload.status === 'validating' || upload.status === 'processing' || upload.status === 'processed'}
                         onClick={handleProcess}
                     >
-                        {upload.status === 'processing' ? 'Processing...' : 'Process Valid Rows'}
+                        {upload.status === 'processing'
+                            ? 'Processing...'
+                            : upload.status === 'processed'
+                                ? 'Processed'
+                                : 'Process Valid Rows'}
                     </Button>
                 ]}
             />
@@ -143,7 +157,7 @@ export default function UploadValidationPage({ upload, errors }: ValidationProps
                 </SectionCard>
             )}
 
-            {upload.status !== 'validating' && upload.invalid_rows === 0 && upload.total_rows > 0 && (
+            {upload.status !== 'validating' && upload.status !== 'processed' && upload.invalid_rows === 0 && upload.total_rows > 0 && (
                 <div className="mt-8 flex flex-col items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 p-12">
                     <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -152,6 +166,18 @@ export default function UploadValidationPage({ upload, errors }: ValidationProps
                     </div>
                     <h3 className="text-lg font-medium text-emerald-900">All Rows Valid!</h3>
                     <p className="text-emerald-700 mt-1">Your upload has been successfully validated with no errors.</p>
+                </div>
+            )}
+
+            {upload.status === 'processed' && (
+                <div className="mt-8 flex flex-col items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 p-12 text-center">
+                    <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-emerald-900">Batch Processed</h3>
+                    <p className="text-emerald-700 mt-1">This upload batch has been successfully processed and all valid orders have been created.</p>
                 </div>
             )}
         </FmcgPageShell>
