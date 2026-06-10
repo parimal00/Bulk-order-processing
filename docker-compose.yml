@@ -21,7 +21,8 @@ services:
       DB_DATABASE: ${DB_DATABASE:-bulk_order_processing}
       DB_USERNAME: ${DB_USERNAME:-app}
       DB_PASSWORD: ${DB_PASSWORD:-secret}
-      QUEUE_CONNECTION: database
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
       CACHE_STORE: database
       SESSION_DRIVER: database
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
@@ -30,30 +31,36 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_started
 
-  # queue:
-  #   image: bulk-order-processing-app
-  #   container_name: bulk-order-processing-queue
-  #   command: php artisan queue:work --tries=1 --timeout=0
-  #   environment:
-  #     APP_ENV: local
-  #     APP_DEBUG: "true"
-  #     APP_URL: http://localhost:8000
-  #     DB_CONNECTION: mysql
-  #     DB_HOST: mysql
-  #     DB_PORT: 3306
-  #     DB_DATABASE: ${DB_DATABASE:-bulk_order_processing}
-  #     DB_USERNAME: ${DB_USERNAME:-app}
-  #     DB_PASSWORD: ${DB_PASSWORD:-secret}
-  #     QUEUE_CONNECTION: database
-  #     CACHE_STORE: database
-  #     SESSION_DRIVER: database
-  #     RUN_MIGRATIONS: "false"
-  #   volumes:
-  #     - ./:/var/www/html
-  #   depends_on:
-  #     mysql:
-  #       condition: service_healthy
+  horizon:
+    image: bulk-order-processing-app
+    pull_policy: never
+    container_name: bulk-order-processing-horizon
+    command: php artisan horizon
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-bulk_order_processing}
+      DB_USERNAME: ${DB_USERNAME:-app}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      RUN_MIGRATIONS: "false"
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   # vite:
   #   build:
@@ -109,5 +116,14 @@ services:
       mysql:
         condition: service_healthy
 
+  redis:
+    image: redis:alpine
+    container_name: bulk-order-processing-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
 volumes:
   mysql-data:
+  redis-data:

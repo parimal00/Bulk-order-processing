@@ -52,15 +52,15 @@ class SendOrderToIntegrationJob implements ShouldQueue
             return;
         }
 
-        $throttleKey = "integrations:outbound:{$sync->provider}";
+        $throttleKey = "integrations:outbound:{$sync->provider}:customer:{$order->customer_id}";
 
         try {
-            Redis::throttle($throttleKey)->allow(1)->every(60)->then(
+            Redis::throttle($throttleKey)->allow(5)->every(1)->then(
                 function () use ($order, $sync, $integrationStub): void {
                     $this->performSync($order, $sync, $integrationStub);
                 },
                 function (): void {
-                    $this->release(61);
+                    $this->release(1);
                 }
             );
         } catch (Throwable) {
@@ -74,14 +74,14 @@ class SendOrderToIntegrationJob implements ShouldQueue
         OrderIntegration $sync,
         OutboundIntegrationStub $integrationStub
     ): void {
-        if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
-            $retryAfterSeconds = RateLimiter::availableIn($throttleKey) + 1;
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $retryAfterSeconds = RateLimiter::availableIn($throttleKey);
             $this->release(max(1, $retryAfterSeconds));
 
             return;
         }
 
-        RateLimiter::hit($throttleKey, 60);
+        RateLimiter::hit($throttleKey, 1);
         $this->performSync($order, $sync, $integrationStub);
     }
 
