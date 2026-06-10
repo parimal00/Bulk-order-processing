@@ -125,6 +125,11 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    'serializable_classes' => [
+    // Allow Laravel Pulse to serialize and unserialize its dashboard data safely
+    Illuminate\Support\Collection::class,
+    stdClass::class,
+    Carbon\CarbonImmutable::class,
+],
 
 ];

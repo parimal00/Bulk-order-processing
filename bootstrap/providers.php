@@ -4,5 +4,5 @@ return [
     App\Providers\AppServiceProvider::class,
     App\Providers\FortifyServiceProvider::class,
     App\Providers\SlowQueryServiceProvider::class,
-    App\Providers\TelescopeServiceProvider::class,
+    // App\Providers\TelescopeServiceProvider::class,
 ];
