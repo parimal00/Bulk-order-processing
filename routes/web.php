@@ -23,6 +23,10 @@ Route::post('integrations/webhooks/order-sync', [IntegrationWebhookController::c
     ->withoutMiddleware([ValidateCsrfToken::class])
     ->name('integrations.webhooks.order-sync');
 
+Route::post('integrations/erp-stub/orders', [\App\Http\Controllers\Fmcg\ErpStubController::class, 'receiveOrder'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('integrations.erp-stub.orders');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

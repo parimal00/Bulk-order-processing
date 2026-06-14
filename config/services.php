@@ -36,6 +36,7 @@ return [
     ],
 
     'erp_stub' => [
+        'base_url' => env('ERP_STUB_BASE_URL', 'http://localhost:8000'),
         'webhook_token' => env('ERP_STUB_WEBHOOK_TOKEN', 'erp-stub-token'),
     ],
 

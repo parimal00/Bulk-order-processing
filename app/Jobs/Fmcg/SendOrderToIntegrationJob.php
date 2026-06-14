@@ -28,9 +28,7 @@ class SendOrderToIntegrationJob implements ShouldQueue
      */
     public array $backoff = [10, 30, 60];
 
-    public function __construct(public int $orderId)
-    {
-    }
+    public function __construct(public int $orderId) {}
 
     public function handle(OutboundIntegrationStub $integrationStub): void
     {

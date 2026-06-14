@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\OrderLine;
 use App\Services\Fmcg\OutboundIntegrationStub;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -84,6 +85,15 @@ class OutboundIntegrationStubTest extends TestCase
             'allocation_status' => 'allocated',
         ]);
 
+        Http::fake([
+            '*/integrations/erp-stub/orders' => Http::response([
+                'accepted' => true,
+                'external_reference' => 'ERP-'.$order->order_number,
+                'external_status' => 'received',
+                'message' => 'Order accepted by ERP stub.',
+            ], 200),
+        ]);
+
         $job = new SendOrderToIntegrationJob($order->id);
         $job->handle(new OutboundIntegrationStub());
 
@@ -97,6 +107,140 @@ class OutboundIntegrationStubTest extends TestCase
             'action' => 'integration_sync_sent',
             'entity_type' => OrderIntegration::class,
             'entity_id' => $sync->id,
+        ]);
+    }
+
+    public function test_outbound_integration_retries_on_transient_failures(): void
+    {
+        $customer = Customer::factory()->create();
+        $order = $this->createSyncableOrder($customer->id);
+
+        Http::fake([
+            '*/integrations/erp-stub/orders' => Http::sequence()
+                ->response('Transient Error', 503)
+                ->response('Transient Error', 503)
+                ->response([
+                    'accepted' => true,
+                    'external_reference' => 'ERP-'.$order->order_number,
+                    'external_status' => 'received',
+                    'message' => 'Order accepted by ERP stub.',
+                ], 200),
+        ]);
+
+        $job = new SendOrderToIntegrationJob($order->id);
+        $job->handle(new OutboundIntegrationStub());
+
+        Http::assertSentCount(3);
+
+        $sync = OrderIntegration::where('order_id', $order->id)->first();
+        $this->assertNotNull($sync);
+        $this->assertSame(OrderIntegration::STATUS_SENT, $sync->status);
+        $this->assertSame('ERP-'.$order->order_number, $sync->external_reference);
+    }
+
+    public function test_outbound_integration_fails_permanently_after_all_retries(): void
+    {
+        $customer = Customer::factory()->create();
+        $order = $this->createSyncableOrder($customer->id);
+
+        Http::fake([
+            '*/integrations/erp-stub/orders' => Http::response('Server Error', 500),
+        ]);
+
+        $job = new SendOrderToIntegrationJob($order->id);
+        $job->handle(new OutboundIntegrationStub());
+
+        Http::assertSentCount(3);
+
+        $sync = OrderIntegration::where('order_id', $order->id)->first();
+        $this->assertNotNull($sync);
+        $this->assertSame(OrderIntegration::STATUS_FAILED, $sync->status);
+        $this->assertStringContainsString('ERP connection failed', $sync->last_error);
+    }
+
+    public function test_webhook_callback_job_retries_on_failure(): void
+    {
+        Http::fake([
+            'http://example.com/webhook' => Http::sequence()
+                ->response('Gateway Timeout', 504)
+                ->response('Success', 200),
+        ]);
+
+        $job = new \App\Jobs\Fmcg\SendWebhookCallbackJob('http://example.com/webhook', [
+            'order_number' => 'ORD-123',
+            'status' => 'acknowledged',
+        ]);
+        $job->handle();
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_erp_stub_controller_simulates_transient_failure_and_success(): void
+    {
+        config(['services.erp_stub.webhook_token' => 'test-token']);
+
+        $customer = Customer::factory()->create();
+        
+        $order = Order::create([
+            'id' => 15,
+            'customer_id' => $customer->id,
+            'order_number' => 'ORD-TRANSIENT-5',
+            'status' => 'allocated',
+            'currency' => 'USD',
+            'subtotal' => 100,
+            'total' => 100,
+            'placed_at' => now(),
+        ]);
+
+        $this->postJson(
+            route('integrations.erp-stub.orders'),
+            [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'customer' => ['id' => $customer->id, 'name' => $customer->name],
+                'currency' => $order->currency,
+                'total' => (string) $order->total,
+                'status' => $order->status,
+                'line_count' => 1,
+                'callback_url' => 'http://localhost/callback',
+            ],
+            ['X-Integration-Token' => 'test-token']
+        )->assertStatus(503);
+
+        $this->postJson(
+            route('integrations.erp-stub.orders'),
+            [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'customer' => ['id' => $customer->id, 'name' => $customer->name],
+                'currency' => $order->currency,
+                'total' => (string) $order->total,
+                'status' => $order->status,
+                'line_count' => 1,
+                'callback_url' => 'http://localhost/callback',
+            ],
+            ['X-Integration-Token' => 'test-token']
+        )->assertStatus(503);
+
+        $response = $this->postJson(
+            route('integrations.erp-stub.orders'),
+            [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'customer' => ['id' => $customer->id, 'name' => $customer->name],
+                'currency' => $order->currency,
+                'total' => (string) $order->total,
+                'status' => $order->status,
+                'line_count' => 1,
+                'callback_url' => 'http://localhost/callback',
+            ],
+            ['X-Integration-Token' => 'test-token']
+        );
+
+        $response->assertOk();
+        $response->assertJson([
+            'accepted' => true,
+            'external_reference' => 'ERP-ORD-TRANSIENT-5',
         ]);
     }
 
