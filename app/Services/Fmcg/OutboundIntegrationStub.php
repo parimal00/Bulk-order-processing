@@ -3,11 +3,19 @@
 namespace App\Services\Fmcg;
 
 use App\Models\Order;
+use App\Services\Fmcg\CircuitBreaker;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class OutboundIntegrationStub
 {
+    protected CircuitBreaker $circuitBreaker;
+
+    public function __construct(?CircuitBreaker $circuitBreaker = null)
+    {
+        $this->circuitBreaker = $circuitBreaker ?? app(CircuitBreaker::class);
+    }
+
     public function provider(): string
     {
         return 'erp_stub';
@@ -42,6 +50,18 @@ class OutboundIntegrationStub
                 'external_reference' => null,
                 'external_status' => 'rejected',
                 'message' => 'Order is not in a syncable state.',
+                'request' => $payload,
+            ];
+        }
+
+        $provider = $this->provider();
+        if (! $this->circuitBreaker->isAvailable($provider)) {
+            $status = $this->circuitBreaker->getStatus($provider);
+            return [
+                'accepted' => false,
+                'external_reference' => null,
+                'external_status' => 'failed',
+                'message' => "Circuit breaker is in {$status} state. Request blocked.",
                 'request' => $payload,
             ];
         }
@@ -82,6 +102,8 @@ class OutboundIntegrationStub
 
             $data = $response->json();
 
+            $this->circuitBreaker->recordSuccess($provider);
+
             return [
                 'accepted' => $data['accepted'] ?? false,
                 'external_reference' => $data['external_reference'] ?? null,
@@ -93,6 +115,8 @@ class OutboundIntegrationStub
             Log::error("ERP integration call failed permanently for Order {$order->order_number}: " . $e->getMessage(), [
                 'exception' => $e,
             ]);
+
+            $this->circuitBreaker->recordFailure($provider);
 
             return [
                 'accepted' => false,

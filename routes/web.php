@@ -65,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::get('reconciliation', [ReconciliationController::class, 'index'])->name('reconciliation');
             Route::post('reconciliation/{integration}/retry', [ReconciliationController::class, 'retry'])->name('reconciliation.retry');
+            Route::post('reconciliation/circuit-breaker/{provider}/update', [ReconciliationController::class, 'updateCircuitBreaker'])->name('reconciliation.circuit-breaker.update');
         });
 
         Route::middleware('can:access-admin-settings')->group(function () {
